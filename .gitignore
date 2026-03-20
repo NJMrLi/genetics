@@ -1,0 +1,30 @@
+# Maven
+genetics-server/target/
+genetics-server/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+
+# Node
+genetics-web/node_modules/
+genetics-web/dist/
+genetics-web/.vite/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Env
+.env
+.env.local

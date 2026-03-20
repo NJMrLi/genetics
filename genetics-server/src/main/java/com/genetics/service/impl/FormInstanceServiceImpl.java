@@ -1,0 +1,195 @@
+package com.genetics.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.genetics.converter.FormDataConverter;
+import com.genetics.dto.FormInstanceCreateDTO;
+import com.genetics.dto.FormInstanceDetailVO;
+import com.genetics.dto.FormInstanceSaveDTO;
+import com.genetics.dto.FormTemplateDetailVO;
+import com.genetics.entity.FormInstance;
+import com.genetics.entity.FormTemplate;
+import com.genetics.enums.InstanceStatus;
+import com.genetics.enums.OrderStatus;
+import com.genetics.mapper.FormInstanceMapper;
+import com.genetics.mapper.FormTemplateMapper;
+import com.genetics.service.FormInstanceService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class FormInstanceServiceImpl implements FormInstanceService {
+
+    private final FormInstanceMapper formInstanceMapper;
+    private final FormTemplateMapper formTemplateMapper;
+    private final FormTemplateServiceImpl formTemplateService;
+    private final FormDataConverter formDataConverter;
+    private final ObjectMapper objectMapper;
+
+    @Override
+    public FormInstanceDetailVO create(FormInstanceCreateDTO dto) {
+        // 查询模板
+        FormTemplate template = formTemplateMapper.selectById(dto.getTemplateId());
+        if (template == null) throw new IllegalArgumentException("模板不存在: " + dto.getTemplateId());
+
+        // 创建实例
+        FormInstance instance = new FormInstance();
+        instance.setTemplateId(template.getId());
+        instance.setTemplateName(template.getTemplateName());
+        instance.setVersion(template.getVersion());
+        instance.setCountryCode(template.getCountryCode());
+        instance.setServiceCodeL1(template.getServiceCodeL1());
+        instance.setServiceCodeL2(template.getServiceCodeL2());
+        instance.setServiceCodeL3(template.getServiceCodeL3());
+        instance.setFormData("{}");
+        instance.setStatus(InstanceStatus.DRAFT.getCode());
+        instance.setOrderStatusId(OrderStatus.PENDING_SUBMIT.getCode());
+        formInstanceMapper.insert(instance);
+
+        // 构建详情VO
+        FormTemplateDetailVO templateDetail = formTemplateService.buildDetailVO(template);
+        return buildDetailVO(instance, templateDetail, new HashMap<>());
+    }
+
+    @Override
+    public void save(Long id, FormInstanceSaveDTO dto) {
+        FormInstance instance = requireExist(id);
+        if (instance.getStatus() > InstanceStatus.DRAFT.getCode()) {
+            throw new IllegalArgumentException("已提交的服务单不可修改");
+        }
+        try {
+            instance.setFormData(objectMapper.writeValueAsString(dto.getFormData()));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("表单数据序列化失败", e);
+        }
+        // 更新业务状态（可选）
+        if (dto.getOrderStatusId() != null) {
+            instance.setOrderStatusId(dto.getOrderStatusId());
+        }
+        // 更新服务时间（可选）
+        if (dto.getServiceStartTime() != null) {
+            instance.setServiceStartTime(dto.getServiceStartTime());
+        }
+        if (dto.getServiceEndTime() != null) {
+            instance.setServiceEndTime(dto.getServiceEndTime());
+        }
+        formInstanceMapper.updateById(instance);
+    }
+
+    @Override
+    public Map<String, Object> submit(Long id) {
+        FormInstance instance = requireExist(id);
+        if (instance.getStatus() >= InstanceStatus.SUBMITTED.getCode()) {
+            throw new IllegalArgumentException("服务单已提交，请勿重复操作");
+        }
+
+        // 解析 formData
+        Map<String, Object> formData;
+        try {
+            formData = objectMapper.readValue(instance.getFormData(),
+                    new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("表单数据解析失败", e);
+        }
+
+        // 转换为业务实体对象
+        Map<String, Object> converted = formDataConverter.convert(formData);
+
+        // 打印转换结果日志
+        converted.forEach((className, obj) -> {
+            try {
+                log.info("【表单提交转换结果】{}: {}", className, objectMapper.writeValueAsString(obj));
+            } catch (JsonProcessingException e) {
+                log.info("【表单提交转换结果】{}: {}", className, obj);
+            }
+        });
+
+        // 更新状态
+        instance.setStatus(InstanceStatus.SUBMITTED.getCode());
+        instance.setSubmitTime(LocalDateTime.now());
+        formInstanceMapper.updateById(instance);
+
+        return converted;
+    }
+
+    @Override
+    public FormInstanceDetailVO getDetailById(Long id) {
+        FormInstance instance = requireExist(id);
+        FormTemplate template = formTemplateMapper.selectById(instance.getTemplateId());
+        FormTemplateDetailVO templateDetail = formTemplateService.buildDetailVO(template);
+
+        Map<String, Object> formData = parseFormData(instance.getFormData());
+        return buildDetailVO(instance, templateDetail, formData);
+    }
+
+    @Override
+    public void updateOrderStatus(Long id, Integer orderStatusId) {
+        OrderStatus.of(orderStatusId)
+                .orElseThrow(() -> new IllegalArgumentException("无效的业务状态ID: " + orderStatusId));
+        FormInstance instance = requireExist(id);
+        instance.setOrderStatusId(orderStatusId);
+        formInstanceMapper.updateById(instance);
+    }
+
+    @Override
+    public Page<FormInstance> page(int pageNum, int pageSize, Integer status, Integer orderStatusId) {
+        LambdaQueryWrapper<FormInstance> wrapper = new LambdaQueryWrapper<FormInstance>()
+                .eq(status != null, FormInstance::getStatus, status)
+                .eq(orderStatusId != null, FormInstance::getOrderStatusId, orderStatusId)
+                .orderByDesc(FormInstance::getCreateTime);
+        return formInstanceMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    private FormInstance requireExist(Long id) {
+        FormInstance instance = formInstanceMapper.selectById(id);
+        if (instance == null) throw new IllegalArgumentException("服务单不存在: " + id);
+        return instance;
+    }
+
+    private Map<String, Object> parseFormData(String json) {
+        try {
+            if (json == null || json.isBlank()) return new HashMap<>();
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException e) {
+            log.warn("解析formData失败", e);
+            return new HashMap<>();
+        }
+    }
+
+    private FormInstanceDetailVO buildDetailVO(FormInstance instance,
+                                               FormTemplateDetailVO templateDetail,
+                                               Map<String, Object> formData) {
+        FormInstanceDetailVO vo = new FormInstanceDetailVO();
+        vo.setInstanceId(instance.getId());
+        vo.setTemplateId(instance.getTemplateId());
+        vo.setTemplateName(instance.getTemplateName());
+        vo.setVersion(instance.getVersion());
+        vo.setCountryCode(instance.getCountryCode());
+        vo.setServiceCodeL1(instance.getServiceCodeL1());
+        vo.setServiceCodeL2(instance.getServiceCodeL2());
+        vo.setServiceCodeL3(instance.getServiceCodeL3());
+        vo.setJsonSchema(templateDetail.getJsonSchema());
+        vo.setControlDetails(templateDetail.getControlDetails());
+        vo.setFormData(formData);
+        vo.setStatus(instance.getStatus());
+        // 业务状态
+        int osId = instance.getOrderStatusId() != null ? instance.getOrderStatusId() : OrderStatus.PENDING_SUBMIT.getCode();
+        vo.setOrderStatusId(osId);
+        vo.setOrderStatusName(OrderStatus.nameOf(osId));
+        vo.setServiceStartTime(instance.getServiceStartTime());
+        vo.setServiceEndTime(instance.getServiceEndTime());
+        vo.setSubmitTime(instance.getSubmitTime());
+        vo.setCreateTime(instance.getCreateTime());
+        return vo;
+    }
+}
