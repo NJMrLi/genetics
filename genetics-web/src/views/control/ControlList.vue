@@ -3,6 +3,9 @@
     <!-- 工具栏 -->
     <div class="page-toolbar">
       <div class="toolbar-left">
+        <el-select v-model="query.groupName" placeholder="业务分组" clearable size="small" style="width:140px" @change="fetchList">
+          <el-option v-for="g in businessTypeOptions" :key="g" :value="g" :label="GROUP_MAPPING[g] || g" />
+        </el-select>
         <el-select v-model="query.controlType" placeholder="控件类型" clearable size="small" style="width:120px" @change="fetchList">
           <el-option v-for="t in CONTROL_TYPES" :key="t.value" :value="t.value" :label="t.label" />
         </el-select>
@@ -14,8 +17,16 @@
       </el-button>
     </div>
 
-    <!-- 表格 -->
-    <el-table :data="list" border stripe v-loading="loading">
+    <!-- 按业务分组展示 -->
+    <div v-loading="loading" class="grouped-list">
+      <el-collapse v-model="activeGroups">
+        <el-collapse-item
+          v-for="(items, groupName) in groupedList"
+          :key="groupName"
+          :title="`${groupName} (${items.length})`"
+          :name="groupName"
+        >
+          <el-table :data="items" border stripe size="small">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="controlName" label="控件名称" width="140" />
       <el-table-column prop="controlKey" label="控件Key" width="220" show-overflow-tooltip />
@@ -46,8 +57,12 @@
         </template>
       </el-table-column>
     </el-table>
+        </el-collapse-item>
+      </el-collapse>
+    </div>
 
     <el-pagination
+      v-if="false"
       v-model:current-page="query.page"
       v-model:page-size="query.size"
       :total="total"
@@ -68,6 +83,11 @@
           <el-col :span="12">
             <el-form-item label="控件Key" prop="controlKey">
               <el-input v-model="form.controlKey" placeholder="如：Company.companyName" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="业务类型">
+              <el-input v-model="form.businessType" placeholder="自动从controlKey提取" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -158,9 +178,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { listControls, createControl, updateControl, deleteControl } from '@/api/formControl'
+import { listAllControls, createControl, updateControl, deleteControl, getBusinessTypes } from '@/api/formControl'
 
 const CONTROL_TYPES = [
   { value: 'INPUT', label: '输入框' },
@@ -172,19 +192,95 @@ const CONTROL_TYPES = [
   { value: 'UPLOAD', label: '文件上传' }
 ]
 
+// 业务分组映射
+const GROUP_MAPPING = {
+  'Company': '公司信息',
+  'CompanyLegalPerson': '法人信息',
+  'CompanyTaxNo': '税号信息',
+  'CompanyAttachment': '附件信息',
+  'CompanyService': '服务信息',
+  'CompanyBank': '银行信息',
+  'CompanyContact': '联系人信息',
+  'CompanyAddress': '地址信息',
+  'CompanyShareholder': '股东信息',
+  'CompanyBusiness': '业务信息'
+}
+
 const loading = ref(false)
 const submitting = ref(false)
 const list = ref([])
 const total = ref(0)
-const query = reactive({ page: 1, size: 20, controlType: '', keyword: '' })
+const query = reactive({ groupName: '', controlType: '', keyword: '' })
+const activeGroups = ref([])
+const businessTypeOptions = ref([])
+
+// 从 controlKey 提取业务类型前缀（英文，如 Company）
+function getGroupPrefix(controlKey) {
+  if (!controlKey) return '其他'
+  return controlKey.split('.')[0]
+}
+
+// 分组显示标签（中文）
+function getGroupLabel(prefix) {
+  return GROUP_MAPPING[prefix] || prefix
+}
+
+// 计算分组后的列表
+const groupedList = computed(() => {
+  let filtered = list.value
+  
+  // 按业务类型筛选（英文key）
+  if (query.groupName) {
+    filtered = filtered.filter(item => getGroupPrefix(item.controlKey) === query.groupName)
+  }
+  
+  // 按类型筛选
+  if (query.controlType) {
+    filtered = filtered.filter(item => item.controlType === query.controlType)
+  }
+  
+  // 按关键词搜索
+  if (query.keyword) {
+    const kw = query.keyword.toLowerCase()
+    filtered = filtered.filter(item => 
+      (item.controlName && item.controlName.toLowerCase().includes(kw)) ||
+      (item.controlKey && item.controlKey.toLowerCase().includes(kw))
+    )
+  }
+  
+  // 按业务类型前缀归类
+  const groups = {}
+  filtered.forEach(item => {
+    const prefix = getGroupPrefix(item.controlKey)
+    const label = getGroupLabel(prefix)
+    if (!groups[label]) {
+      groups[label] = []
+    }
+    groups[label].push(item)
+  })
+  
+  // 每组内按 sort 排序
+  Object.keys(groups).forEach(key => {
+    groups[key].sort((a, b) => (a.sort || 0) - (b.sort || 0))
+  })
+  
+  return groups
+})
 
 const dialogVisible = ref(false)
 const formRef = ref(null)
 const form = reactive({
-  id: null, controlName: '', controlKey: '', controlType: 'INPUT',
+  id: null, controlName: '', controlKey: '', businessType: '', controlType: 'INPUT',
   placeholder: '', tips: '', required: false, regexPattern: '', regexMessage: '',
   minLength: null, maxLength: null, selectOptions: '', uploadConfig: '',
   defaultValue: '', sort: 0, enabled: true
+})
+
+// 监听 controlKey 自动提取 businessType
+watch(() => form.controlKey, (val) => {
+  if (val && val.includes('.')) {
+    form.businessType = val.split('.')[0]
+  }
 })
 
 const rules = {
@@ -199,9 +295,10 @@ const rules = {
 async function fetchList() {
   loading.value = true
   try {
-    const res = await listControls(query)
-    list.value = res.data.records
-    total.value = res.data.total
+    const res = await listAllControls()
+    list.value = res.data || []
+    // 默认展开所有分组（使用中文标签作为collapse key）
+    activeGroups.value = Object.keys(groupedList.value)
   } finally {
     loading.value = false
   }
@@ -210,9 +307,12 @@ async function fetchList() {
 function openDialog(row) {
   if (row) {
     Object.assign(form, row)
+    if (!form.businessType && form.controlKey) {
+      form.businessType = form.controlKey.split('.')[0]
+    }
   } else {
     Object.assign(form, {
-      id: null, controlName: '', controlKey: '', controlType: 'INPUT',
+      id: null, controlName: '', controlKey: '', businessType: '', controlType: 'INPUT',
       placeholder: '', tips: '', required: false, regexPattern: '', regexMessage: '',
       minLength: null, maxLength: null, selectOptions: '', uploadConfig: '',
       defaultValue: '', sort: 0, enabled: true
@@ -250,7 +350,19 @@ async function toggleEnabled(row) {
   fetchList()
 }
 
-onMounted(fetchList)
+async function fetchBusinessTypes() {
+  try {
+    const res = await getBusinessTypes()
+    businessTypeOptions.value = res.data || []
+  } catch {
+    businessTypeOptions.value = Object.keys(GROUP_MAPPING)
+  }
+}
+
+onMounted(() => {
+  fetchList()
+  fetchBusinessTypes()
+})
 </script>
 
 <style scoped>
@@ -258,4 +370,20 @@ onMounted(fetchList)
 .page-toolbar { display: flex; justify-content: space-between; align-items: center; }
 .toolbar-left { display: flex; gap: 8px; align-items: center; }
 .pagination { justify-content: flex-end; }
+
+.grouped-list {
+  flex: 1;
+  overflow: auto;
+}
+
+.grouped-list :deep(.el-collapse-item__header) {
+  font-weight: bold;
+  font-size: 14px;
+  background-color: #f5f7fa;
+  padding-left: 12px;
+}
+
+.grouped-list :deep(.el-collapse-item__content) {
+  padding: 8px;
+}
 </style>

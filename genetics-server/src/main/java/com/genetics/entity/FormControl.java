@@ -24,6 +24,9 @@ public class FormControl {
     /** 控件类型: INPUT/SELECT/SWITCH/UPLOAD/TEXTAREA/DATE/NUMBER */
     private String controlType;
 
+    /** 业务类型（实体类名）: Company/CompanyAddress等 */
+    private String businessType;
+
     /** 占位文本 */
     private String placeholder;
 

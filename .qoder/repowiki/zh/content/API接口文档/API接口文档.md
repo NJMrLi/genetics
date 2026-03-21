@@ -2,431 +2,824 @@
 
 <cite>
 **本文档引用的文件**
-- [VAT_EPR_动态表单技术方案.md](file://VAT_EPR_动态表单技术方案.md)
+- [README.md](file://README.md)
+- [FormControlController.java](file://genetics-server/src/main/java/com/genetics/controller/FormControlController.java)
+- [FormTemplateController.java](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java)
+- [FormInstanceController.java](file://genetics-server/src/main/java/com/genetics/controller/FormInstanceController.java)
+- [BasicDataController.java](file://genetics-server/src/main/java/com/genetics/controller/BasicDataController.java)
+- [FormControlDTO.java](file://genetics-server/src/main/java/com/genetics/dto/FormControlDTO.java)
+- [FormTemplateDTO.java](file://genetics-server/src/main/java/com/genetics/dto/FormTemplateDTO.java)
+- [FormInstanceCreateDTO.java](file://genetics-server/src/main/java/com/genetics/dto/FormInstanceCreateDTO.java)
+- [FormInstanceSaveDTO.java](file://genetics-server/src/main/java/com/genetics/dto/FormInstanceSaveDTO.java)
+- [CountryCode.java](file://genetics-server/src/main/java/com/genetics/enums/CountryCode.java)
+- [ControlType.java](file://genetics-server/src/main/java/com/genetics/enums/ControlType.java)
+- [InstanceStatus.java](file://genetics-server/src/main/java/com/genetics/enums/InstanceStatus.java)
+- [OrderStatus.java](file://genetics-server/src/main/java/com/genetics/enums/OrderStatus.java)
+- [application.yml](file://genetics-server/src/main/resources/application.yml)
+- [formControl.js](file://genetics-web/src/api/formControl.js)
+- [formTemplate.js](file://genetics-web/src/api/formTemplate.js)
+- [formInstance.js](file://genetics-web/src/api/formInstance.js)
+- [basic.js](file://genetics-web/src/api/basic.js)
 </cite>
+
+## 更新摘要
+**所做更改**
+- 新增基础数据API模块的完整接口文档
+- 更新所有控制器接口的详细参数说明
+- 添加Swagger UI访问链接和接口文档说明
+- 完善业务状态枚举和国家代码枚举的详细说明
+- 增强API测试指南和常见问题解决方案
 
 ## 目录
 1. [简介](#简介)
-2. [项目结构](#项目结构)
-3. [核心组件](#核心组件)
-4. [架构总览](#架构总览)
-5. [详细组件分析](#详细组件分析)
-6. [依赖关系分析](#依赖关系分析)
-7. [性能考量](#性能考量)
-8. [故障排除指南](#故障排除指南)
-9. [结论](#结论)
-10. [附录](#附录)
+2. [项目概述](#项目概述)
+3. [技术架构](#技术架构)
+4. [API接口总览](#api接口总览)
+5. [自定义控件API](#自定义控件api)
+6. [服务单模板API](#服务单模板api)
+7. [服务单实例API](#服务单实例api)
+8. [基础数据API](#基础数据api)
+9. [API测试指南](#api测试指南)
+10. [常见问题解答](#常见问题解答)
+11. [性能优化建议](#性能优化建议)
+12. [安全注意事项](#安全注意事项)
 
 ## 简介
-本文件为VAT&EPR动态表单系统的完整API接口文档，涵盖以下四类接口：
-- 自定义控件API：用于管理表单控件定义（创建、查询、更新、删除）
-- 服务单模板API：用于设计与管理服务单模板（创建/保存、查询列表、查询详情、更新、发布）
-- 服务单实例API：用于创建、保存草稿、提交服务单实例
-- 服务类目API：用于查询服务类目的三级联动数据
+VAT&EPR动态表单系统是一个基于Spring Boot 3.2 + Vue 3的企业级动态表单管理系统，专为增值税(VAT)和环境报告(EPR)业务场景设计。系统支持自定义控件、拖拽式表单设计、服务单全生命周期管理和多国家多语言支持。
 
-文档提供每类接口的HTTP方法、URL模式、请求参数、响应格式、状态码说明、错误处理、请求与响应示例以及使用场景，并对安全性、认证与限流策略进行说明，最后提供API测试指南与常见问题解决方案。
+## 项目概述
+本系统采用前后端分离架构，后端使用Spring Boot 3.2和MyBatis-Plus，前端使用Vue 3 + Element Plus，提供完整的表单设计、实例管理和数据转换功能。
 
-## 项目结构
-后端采用Spring Boot + MyBatis-Plus架构，按功能模块划分控制器、服务、映射器、实体与通用返回封装等层次。前端采用Vue 3 + Element Plus，提供动态表单渲染、模板设计器与服务单实例填写界面。
+**技术特性**
+- 支持7种控件类型：输入框、文本域、数字输入、下拉框、开关、日期选择、文件上传
+- 拖拽式表单设计器，支持1-4列布局
+- 多国家支持：DEU(德国)、FRA(法国)、ITA(意大利)、ESP(西班牙)、POL(波兰)、CZE(捷克)、GBR(英国)
+- 完整的服务单状态管理：草稿、已提交、已审核、待提交、待审核、待递交、已完成、已驳回、已终止
+
+## 技术架构
+系统采用现代化的技术栈，确保高性能和可扩展性。
 
 ```mermaid
 graph TB
-subgraph "后端"
-CFG["JacksonConfig<br/>JSON序列化配置"]
-CTRL_FC["FormControlController"]
-CTRL_FT["FormTemplateController"]
-CTRL_FI["FormInstanceController"]
-CTRL_SC["ServiceCategoryController"]
-SVC_FC["FormControlService"]
-SVC_FT["FormTemplateService"]
-SVC_FI["FormInstanceService"]
-MAP_FC["FormControlMapper"]
-MAP_FT["FormTemplateMapper"]
-MAP_FI["FormInstanceMapper"]
-ENT_FC["FormControl"]
-ENT_FT["FormTemplate"]
-ENT_FI["FormInstance"]
-DTO_FC["FormControlDTO"]
-DTO_FT["FormTemplateDTO"]
-DTO_FI["FormInstanceDTO"]
-RESULT["Result<br/>统一返回封装"]
-CONV["FormDataConverter<br/>表单数据转换器"]
+subgraph "前端层"
+WEB[Vue 3 应用]
+API[API封装层]
+UI[Element Plus UI]
 end
-subgraph "前端"
-API_FC["formControl.js"]
-API_FT["formTemplate.js"]
-API_FI["formInstance.js"]
-API_SC["serviceCategory.js"]
-VIEW_CTL["ControlList.vue"]
-VIEW_TPL["TemplateDesigner.vue"]
-VIEW_INST["InstanceForm.vue"]
+subgraph "后端层"
+CTRL[控制器层]
+SVC[业务服务层]
+MAP[数据访问层]
+DB[MySQL数据库]
 end
-CTRL_FC --> SVC_FC --> MAP_FC --> ENT_FC
-CTRL_FT --> SVC_FT --> MAP_FT --> ENT_FT
-CTRL_FI --> SVC_FI --> MAP_FI --> ENT_FI
-SVC_FI --> CONV
-API_FC --> CTRL_FC
-API_FT --> CTRL_FT
-API_FI --> CTRL_FI
-API_SC --> CTRL_SC
-VIEW_CTL --> API_FC
-VIEW_TPL --> API_FT
-VIEW_INST --> API_FI
-RESULT --> API_FC
-RESULT --> API_FT
-RESULT --> API_FI
-RESULT --> API_SC
+subgraph "基础设施"
+SWAGGER[Swagger UI]
+LOG[日志系统]
+CACHE[缓存层]
+end
+WEB --> API
+API --> CTRL
+CTRL --> SVC
+SVC --> MAP
+MAP --> DB
+CTRL --> SWAGGER
+SVC --> CACHE
+WEB --> UI
 ```
 
-图表来源
-- [VAT_EPR_动态表单技术方案.md:776-813](file://VAT_EPR_动态表单技术方案.md#L776-L813)
-- [VAT_EPR_动态表单技术方案.md:815-852](file://VAT_EPR_动态表单技术方案.md#L815-L852)
+**章节来源**
+- [README.md:5-17](file://README.md#L5-L17)
+- [application.yml:33-40](file://genetics-server/src/main/resources/application.yml#L33-L40)
 
-章节来源
-- [VAT_EPR_动态表单技术方案.md:776-813](file://VAT_EPR_动态表单技术方案.md#L776-L813)
-- [VAT_EPR_动态表单技术方案.md:815-852](file://VAT_EPR_动态表单技术方案.md#L815-L852)
+## API接口总览
+系统提供四个主要模块的RESTful API接口，所有接口均遵循统一的响应格式。
 
-## 核心组件
-- 统一返回封装：Result，统一返回结构包含code、message与data字段，便于前后端约定一致的响应格式。
-- 表单数据转换器：FormDataConverter，负责将Map<controlKey, value>按类名分组并通过反射转换为业务实体对象。
-- 数据模型：FormControl、FormTemplate、FormInstance分别对应自定义控件、服务单模板与服务单实例的持久化实体。
-
-章节来源
-- [VAT_EPR_动态表单技术方案.md:789-809](file://VAT_EPR_动态表单技术方案.md#L789-L809)
-- [VAT_EPR_动态表单技术方案.md:594-684](file://VAT_EPR_动态表单技术方案.md#L594-L684)
-
-## 架构总览
-系统采用前后端分离架构，后端提供RESTful API，前端通过Axios调用接口，动态渲染表单并完成服务单的创建、填写与提交。
-
-```mermaid
-sequenceDiagram
-participant FE as "前端应用"
-participant API as "后端API"
-participant SVC as "业务服务层"
-participant MAP as "数据访问层"
-participant DB as "MySQL数据库"
-FE->>API : "调用接口"
-API->>SVC : "业务处理"
-SVC->>MAP : "持久化操作"
-MAP->>DB : "SQL执行"
-DB-->>MAP : "结果集"
-MAP-->>SVC : "实体对象"
-SVC-->>API : "业务结果"
-API-->>FE : "统一响应"
+**统一响应格式**
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": {}
+}
 ```
 
-图表来源
-- [VAT_EPR_动态表单技术方案.md:776-813](file://VAT_EPR_动态表单技术方案.md#L776-L813)
+**接口前缀映射**
+- 自定义控件：`/api/form-control`
+- 服务单模板：`/api/form-template`
+- 服务单实例：`/api/form-instance`
+- 基础数据：`/api/basic`
 
-## 详细组件分析
+**章节来源**
+- [README.md:140-147](file://README.md#L140-L147)
 
-### 自定义控件API
-- 接口范围：用于管理表单控件定义，支持创建、查询列表、更新与删除。
-- URL前缀：/api/form-control
-- 认证与权限：未在方案中明确声明，建议结合项目现有安全机制或新增基于角色的访问控制。
-- 限流策略：未在方案中明确声明，建议针对高频接口设置限流，防止滥用。
+## 自定义控件API
 
-接口清单与说明
-- 创建控件
-  - 方法：POST
-  - URL：/api/form-control
-  - 请求体字段：controlName、controlKey、controlType、placeholder、tips、required、regexPattern、regexMessage、minLength、maxLength、selectOptions（JSON）、uploadConfig（JSON）、defaultValue、sort、enabled
-  - 响应：Result，data包含新建控件的id
-  - 使用场景：在模板设计器中新增控件定义，供模板引用
-  - 错误处理：controlKey需满足“ClassName.fieldName”格式且唯一；必填字段缺失或格式不合法时返回错误
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:171-196](file://VAT_EPR_动态表单技术方案.md#L171-L196)
-  - 响应示例路径：[VAT_EPR_动态表单技术方案.md:190-196](file://VAT_EPR_动态表单技术方案.md#L190-L196)
+### 接口概览
+自定义控件管理接口用于创建、查询、更新和删除表单控件定义，支持7种控件类型和丰富的配置选项。
 
-- 查询控件列表
-  - 方法：GET
-  - URL：/api/form-control/list
-  - 查询参数：controlType（可选）、keyword（可选）、page、size
-  - 响应：Result，data包含total与records
-  - 使用场景：模板设计器左侧控件面板加载可用控件
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:198-211](file://VAT_EPR_动态表单技术方案.md#L198-L211)
+### 控件类型枚举
+| 类型代码 | 描述 | 适用场景 |
+|---------|------|----------|
+| INPUT | 输入框 | 文本输入、用户名、邮箱等 |
+| TEXTAREA | 多行文本 | 备注、描述、详细说明 |
+| NUMBER | 数字输入 | 金额、数量、百分比 |
+| SELECT | 下拉框 | 单选、多选、分类选择 |
+| SWITCH | 开关 | 是/否、启用/禁用 |
+| DATE | 日期选择 | 生日、截止日期、工作日期 |
+| UPLOAD | 文件上传 | 附件、证明材料、扫描件 |
 
-- 更新控件
-  - 方法：PUT
-  - URL：/api/form-control/{id}
-  - 请求体字段：同创建控件（除id外）
-  - 使用场景：修改控件属性或禁用控件
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:213-216](file://VAT_EPR_动态表单技术方案.md#L213-L216)
+### 控件配置参数
+控件配置采用JSON字符串格式存储，支持以下配置项：
 
-- 删除控件
-  - 方法：DELETE
-  - URL：/api/form-control/{id}
-  - 使用场景：清理不再使用的控件定义
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:218-221](file://VAT_EPR_动态表单技术方案.md#L218-L221)
+**基础配置**
+- controlName：控件显示名称
+- controlKey：唯一标识符，格式为`ClassName.fieldName`
+- controlType：控件类型（INPUT/TEXTAREA/NUMBER/SELECT/SWITCH/DATE/UPLOAD）
+- placeholder：占位符文本
+- tips：帮助提示信息
+- required：是否必填
+- sort：排序权重
+- enabled：是否启用
 
-```mermaid
-sequenceDiagram
-participant Admin as "管理员"
-participant FE as "前端"
-participant API as "FormControlController"
-participant SVC as "FormControlService"
-participant MAP as "FormControlMapper"
-participant DB as "MySQL"
-Admin->>FE : "填写控件信息"
-FE->>API : "POST /api/form-control"
-API->>SVC : "校验controlKey格式与唯一性"
-SVC->>MAP : "插入form_control记录"
-MAP->>DB : "INSERT"
-DB-->>MAP : "成功"
-MAP-->>SVC : "返回id"
-SVC-->>API : "返回id"
-API-->>FE : "{ code : 0, data : { id } }"
+**验证规则**
+- regexPattern：正则表达式
+- regexMessage：验证失败提示
+- minLength：最小长度
+- maxLength：最大长度
+
+**特殊配置**
+- selectOptions：下拉选项配置（JSON字符串）
+- uploadConfig：上传配置（JSON字符串）
+- defaultValue：默认值
+
+### 接口详情
+
+#### 创建控件
+**请求方法**：POST  
+**请求URL**：`/api/form-control`  
+**请求头**：`Content-Type: application/json`  
+**请求体参数**：
+```json
+{
+  "controlName": "公司名称",
+  "controlKey": "Company.companyName",
+  "controlType": "INPUT",
+  "placeholder": "请输入公司名称",
+  "tips": "请输入有效的公司名称",
+  "required": true,
+  "regexPattern": "^[\\u4e00-\\u9fa5a-zA-Z0-9]{2,50}$",
+  "regexMessage": "公司名称格式不正确",
+  "minLength": 2,
+  "maxLength": 50,
+  "selectOptions": "[{\"label\":\"选项1\",\"value\":\"1\"}]",
+  "uploadConfig": "{\"maxSize\":10485760,\"allowedTypes\":[\"jpg\",\"png\"]}",
+  "defaultValue": "",
+  "sort": 1,
+  "enabled": true
+}
 ```
 
-图表来源
-- [VAT_EPR_动态表单技术方案.md:169-221](file://VAT_EPR_动态表单技术方案.md#L169-L221)
-
-章节来源
-- [VAT_EPR_动态表单技术方案.md:169-221](file://VAT_EPR_动态表单技术方案.md#L169-L221)
-
-### 服务单模板API
-- 接口范围：用于设计与管理服务单模板，支持创建/保存、查询列表、查询详情、更新与发布。
-- URL前缀：/api/form-template
-- 认证与权限：未在方案中明确声明，建议结合项目现有安全机制或新增基于角色的访问控制。
-- 限流策略：未在方案中明确声明，建议针对模板发布等关键操作设置限流。
-
-接口清单与说明
-- 创建/保存模板
-  - 方法：POST
-  - URL：/api/form-template
-  - 请求体字段：templateName、version、countryCode、serviceCodeL1、serviceCodeL2、serviceCodeL3、jsonSchema（含layout、columns、rows）、status
-  - 响应：Result，data包含新建模板的id
-  - 使用场景：在模板设计器中完成布局与控件配置后保存
-  - 注意事项：模板发布后jsonSchema不可修改，需通过升级版本规避数据错乱
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:227-254](file://VAT_EPR_动态表单技术方案.md#L227-L254)
-  - 响应示例路径：[VAT_EPR_动态表单技术方案.md:248-254](file://VAT_EPR_动态表单技术方案.md#L248-L254)
-
-- 查询模板列表
-  - 方法：GET
-  - URL：/api/form-template/list
-  - 查询参数：countryCode、serviceCodeL3、page、size
-  - 响应：Result，data包含total与records
-  - 使用场景：后台管理中筛选与浏览模板
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:256-259](file://VAT_EPR_动态表单技术方案.md#L256-L259)
-
-- 查询模板详情
-  - 方法：GET
-  - URL：/api/form-template/{id}
-  - 响应：Result，data包含模板基础信息与controlDetails（控件详情）
-  - 使用场景：渲染模板设计器或预览模板
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:261-292](file://VAT_EPR_动态表单技术方案.md#L261-L292)
-
-- 更新模板
-  - 方法：PUT
-  - URL：/api/form-template/{id}
-  - 请求体字段：同创建/保存模板（除id外）
-  - 使用场景：修改模板元信息或调整布局
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:294-297](file://VAT_EPR_动态表单技术方案.md#L294-L297)
-
-- 发布模板
-  - 方法：POST
-  - URL：/api/form-template/{id}/publish
-  - 使用场景：将草稿模板发布为可被实例化的正式模板
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:299-302](file://VAT_EPR_动态表单技术方案.md#L299-L302)
-
-```mermaid
-sequenceDiagram
-participant Admin as "管理员"
-participant FE as "前端设计器"
-participant API as "FormTemplateController"
-participant SVC as "FormTemplateService"
-participant MAP as "FormTemplateMapper"
-participant DB as "MySQL"
-Admin->>FE : "打开模板设计器"
-FE->>API : "GET /api/form-control/list"
-API-->>FE : "控件列表"
-Admin->>FE : "拖拽控件到画板并配置布局"
-Admin->>FE : "填写模板信息并点击保存"
-FE->>API : "POST /api/form-template"
-API->>SVC : "校验字段与jsonSchema"
-SVC->>MAP : "插入form_template记录"
-MAP->>DB : "INSERT"
-DB-->>MAP : "成功"
-MAP-->>SVC : "返回id"
-SVC-->>API : "返回id"
-API-->>FE : "{ code : 0, data : { id } }"
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": {
+    "id": 1
+  }
+}
 ```
 
-图表来源
-- [VAT_EPR_动态表单技术方案.md:415-435](file://VAT_EPR_动态表单技术方案.md#L415-L435)
+**状态码**：
+- 200：创建成功
+- 400：参数验证失败
+- 500：服务器内部错误
 
-章节来源
-- [VAT_EPR_动态表单技术方案.md:225-303](file://VAT_EPR_动态表单技术方案.md#L225-L303)
+**章节来源**
+- [FormControlController.java:25-29](file://genetics-server/src/main/java/com/genetics/controller/FormControlController.java#L25-L29)
+- [FormControlDTO.java:10-44](file://genetics-server/src/main/java/com/genetics/dto/FormControlDTO.java#L10-L44)
 
-### 服务单实例API
-- 接口范围：用于根据模板创建服务单实例、保存草稿、提交实例并触发数据转换。
-- URL前缀：/api/form-instance
-- 认证与权限：未在方案中明确声明，建议结合项目现有安全机制或新增基于角色的访问控制。
-- 限流策略：未在方案中明确声明，建议针对提交等关键操作设置限流。
+#### 查询控件列表
+**请求方法**：GET  
+**请求URL**：`/api/form-control/list`  
+**查询参数**：
+- page：页码，默认1
+- size：每页条数，默认20
+- controlType：控件类型（可选）
+- keyword：关键词搜索（可选）
 
-接口清单与说明
-- 根据模板创建服务单实例
-  - 方法：POST
-  - URL：/api/form-instance/create
-  - 请求体字段：templateId
-  - 响应：Result，data包含instanceId、模板信息、jsonSchema、controlDetails与空的formData
-  - 使用场景：操作员选择模板后初始化实例，前端据此动态渲染表单
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:308-334](file://VAT_EPR_动态表单技术方案.md#L308-L334)
-  - 响应示例路径：[VAT_EPR_动态表单技术方案.md:318-334](file://VAT_EPR_动态表单技术方案.md#L318-L334)
-
-- 保存服务单数据（草稿）
-  - 方法：PUT
-  - URL：/api/form-instance/{id}/save
-  - 请求体字段：formData（Map<controlKey, value>）
-  - 响应：Result，data为null
-  - 使用场景：用户填写过程中临时保存草稿
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:336-357](file://VAT_EPR_动态表单技术方案.md#L336-L357)
-
-- 提交服务单
-  - 方法：POST
-  - URL：/api/form-instance/{id}/submit
-  - 响应：Result，data为按类名分组的对象Map（由FormDataConverter转换）
-  - 使用场景：用户确认无误后提交，触发数据转换与状态更新
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:359-380](file://VAT_EPR_动态表单技术方案.md#L359-L380)
-
-- 查询服务单实例列表
-  - 方法：GET
-  - URL：/api/form-instance/list
-  - 查询参数：status、page、size
-  - 响应：Result，data包含total与records
-  - 使用场景：后台管理中筛选与浏览实例
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:382-386](file://VAT_EPR_动态表单技术方案.md#L382-L386)
-
-```mermaid
-sequenceDiagram
-participant Operator as "操作员"
-participant FE as "前端"
-participant API as "FormInstanceController"
-participant SVC as "FormInstanceService"
-participant MAP as "FormInstanceMapper"
-participant DB as "MySQL"
-participant CONV as "FormDataConverter"
-Operator->>FE : "选择服务单模板"
-FE->>API : "POST /api/form-instance/create"
-API->>SVC : "查询模板详情与controlDetails"
-SVC->>MAP : "查询form_template与关联控件"
-MAP-->>SVC : "模板与控件详情"
-SVC->>MAP : "插入form_instance记录status=草稿"
-MAP->>DB : "INSERT"
-DB-->>MAP : "成功"
-MAP-->>SVC : "返回instanceId"
-SVC-->>API : "返回实例信息"
-API-->>FE : "动态渲染表单"
-Operator->>FE : "填写表单并点击保存草稿"
-FE->>API : "PUT /api/form-instance/{id}/save"
-API->>SVC : "序列化formData并保存"
-SVC-->>API : "success"
-API-->>FE : "{ code : 0, data : null }"
-Operator->>FE : "点击提交"
-FE->>API : "POST /api/form-instance/{id}/submit"
-API->>SVC : "解析formData并调用转换器"
-SVC->>CONV : "convert(formData)"
-CONV-->>SVC : "按类名分组的对象Map"
-SVC->>MAP : "更新status=已提交"
-MAP->>DB : "UPDATE"
-API-->>FE : "{ code : 0, data : convertedObjects }"
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": {
+    "total": 100,
+    "records": [
+      {
+        "id": 1,
+        "controlName": "公司名称",
+        "controlKey": "Company.companyName",
+        "controlType": "INPUT",
+        "required": true,
+        "sort": 1,
+        "enabled": true
+      }
+    ]
+  }
+}
 ```
 
-图表来源
-- [VAT_EPR_动态表单技术方案.md:437-478](file://VAT_EPR_动态表单技术方案.md#L437-L478)
-- [VAT_EPR_动态表单技术方案.md:705-728](file://VAT_EPR_动态表单技术方案.md#L705-L728)
+**章节来源**
+- [FormControlController.java:48-55](file://genetics-server/src/main/java/com/genetics/controller/FormControlController.java#L48-L55)
 
-章节来源
-- [VAT_EPR_动态表单技术方案.md:306-386](file://VAT_EPR_动态表单技术方案.md#L306-L386)
-- [VAT_EPR_动态表单技术方案.md:705-728](file://VAT_EPR_动态表单技术方案.md#L705-L728)
+#### 更新控件
+**请求方法**：PUT  
+**请求URL**：`/api/form-control/{id}`  
+**路径参数**：
+- id：控件ID
 
-### 服务类目API（透传既存系统）
-- 接口范围：用于查询服务类目的三级联动数据，透传既存系统。
-- URL前缀：/api/service-category
-- 认证与权限：未在方案中明确声明，建议结合项目现有安全机制或新增基于角色的访问控制。
-- 限流策略：未在方案中明确声明，建议针对高频查询设置限流。
+**请求体参数**：同创建控件接口
 
-接口清单与说明
-- 查询子类目
-  - 方法：GET
-  - URL：/api/service-category/children
-  - 查询参数：parentId（一级为0，二级为一级id，三级为二级id）
-  - 响应：Result，data为类目列表
-  - 使用场景：前端实现服务类目的三级联动选择
-  - 请求示例路径：[VAT_EPR_动态表单技术方案.md:389-395](file://VAT_EPR_动态表单技术方案.md#L389-L395)
+**章节来源**
+- [FormControlController.java:31-35](file://genetics-server/src/main/java/com/genetics/controller/FormControlController.java#L31-L35)
 
-```mermaid
-sequenceDiagram
-participant FE as "前端"
-participant API as "ServiceCategoryController"
-participant SYS as "既存系统"
-FE->>API : "GET /api/service-category/children?parentId=0"
-API->>SYS : "透传查询一级类目"
-SYS-->>API : "一级类目列表"
-API-->>FE : "返回结果"
-FE->>API : "GET /api/service-category/children?parentId=1"
-API->>SYS : "透传查询二级类目"
-SYS-->>API : "二级类目列表"
-API-->>FE : "返回结果"
+#### 删除控件
+**请求方法**：DELETE  
+**请求URL**：`/api/form-control/{id}`  
+**路径参数**：
+- id：控件ID
+
+**章节来源**
+- [FormControlController.java:37-41](file://genetics-server/src/main/java/com/genetics/controller/FormControlController.java#L37-L41)
+
+#### 获取控件详情
+**请求方法**：GET  
+**请求URL**：`/api/form-control/{id}`  
+**路径参数**：
+- id：控件ID
+
+**章节来源**
+- [FormControlController.java:43-46](file://genetics-server/src/main/java/com/genetics/controller/FormControlController.java#L43-L46)
+
+#### 获取所有控件
+**请求方法**：GET  
+**请求URL**：`/api/form-control/all`
+
+**章节来源**
+- [FormControlController.java:57-60](file://genetics-server/src/main/java/com/genetics/controller/FormControlController.java#L57-L60)
+
+## 服务单模板API
+
+### 接口概览
+服务单模板管理接口用于设计和管理服务单模板，支持拖拽式表单设计器、版本管理和发布流程。
+
+### 模板配置参数
+模板配置包含元信息和JSON Schema布局信息：
+
+**元信息配置**
+- templateName：模板名称
+- version：版本号，默认"1.0.0"
+- countryCode：国家代码
+- serviceCodeL1/L2/L3：服务类别三级编码
+- status：模板状态（草稿/已发布）
+- remark：备注说明
+
+**JSON Schema配置**
+模板通过JSON Schema定义表单布局，包含：
+- layout：布局配置
+- columns：列数配置
+- rows：行配置和控件信息
+
+### 接口详情
+
+#### 创建/保存模板
+**请求方法**：POST  
+**请求URL**：`/api/form-template`  
+**请求体参数**：
+```json
+{
+  "templateName": "VAT申报模板",
+  "version": "1.0.0",
+  "countryCode": "DEU",
+  "serviceCodeL1": "VAT",
+  "serviceCodeL2": "IMPORT",
+  "serviceCodeL3": "STANDARD",
+  "jsonSchema": {
+    "layout": "grid",
+    "columns": 2,
+    "rows": [
+      {
+        "controls": [
+          {
+            "controlKey": "Company.companyName",
+            "colSpan": 2
+          }
+        ]
+      }
+    ]
+  },
+  "status": 0,
+  "remark": "标准VAT申报模板"
+}
 ```
 
-图表来源
-- [VAT_EPR_动态表单技术方案.md:389-395](file://VAT_EPR_动态表单技术方案.md#L389-L395)
-
-章节来源
-- [VAT_EPR_动态表单技术方案.md:389-395](file://VAT_EPR_动态表单技术方案.md#L389-L395)
-
-## 依赖关系分析
-- 控制器依赖服务层，服务层依赖映射器，映射器访问数据库。
-- 服务单实例提交时依赖FormDataConverter进行数据转换。
-- 前端通过Axios调用后端API，动态渲染表单与模板设计器。
-
-```mermaid
-graph LR
-FE_API["前端API模块"] --> CTRL["控制器层"]
-CTRL --> SVC["服务层"]
-SVC --> MAP["数据访问层"]
-MAP --> DB["数据库"]
-SVC --> CONV["FormDataConverter"]
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": {
+    "id": 1
+  }
+}
 ```
 
-图表来源
-- [VAT_EPR_动态表单技术方案.md:776-813](file://VAT_EPR_动态表单技术方案.md#L776-L813)
-- [VAT_EPR_动态表单技术方案.md:594-684](file://VAT_EPR_动态表单技术方案.md#L594-L684)
+**章节来源**
+- [FormTemplateController.java:25-29](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L25-L29)
+- [FormTemplateDTO.java:10-36](file://genetics-server/src/main/java/com/genetics/dto/FormTemplateDTO.java#L10-L36)
 
-章节来源
-- [VAT_EPR_动态表单技术方案.md:776-813](file://VAT_EPR_动态表单技术方案.md#L776-L813)
-- [VAT_EPR_动态表单技术方案.md:594-684](file://VAT_EPR_动态表单技术方案.md#L594-L684)
+#### 查询模板列表
+**请求方法**：GET  
+**请求URL**：`/api/form-template/list`  
+**查询参数**：
+- page：页码，默认1
+- size：每页条数，默认20
+- countryCode：国家代码（可选）
+- serviceCodeL3：三级服务代码（可选）
 
-## 性能考量
-- 数据库索引：模板查询使用countryCode与serviceCodeL3组合条件，建议建立复合索引以提升查询性能。
-- 缓存策略：对频繁访问的控件列表与类目数据可引入缓存，降低数据库压力。
-- 分页查询：列表接口均支持分页参数，建议合理设置分页大小，避免一次性返回过多数据。
-- 并发控制：同一服务单实例的保存操作需加乐观锁（version字段），防止并发覆盖。
-- 文件上传：Upload类型控件提交时value为文件URL列表，建议配合文件服务（如OSS/MinIO）使用，前端上传与后端存储分离。
+**章节来源**
+- [FormTemplateController.java:54-61](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L54-L61)
 
-章节来源
-- [VAT_EPR_动态表单技术方案.md:868-869](file://VAT_EPR_动态表单技术方案.md#L868-L869)
+#### 获取模板详情
+**请求方法**：GET  
+**请求URL**：`/api/form-template/{id}`  
+**路径参数**：
+- id：模板ID
 
-## 故障排除指南
-- controlKey格式错误：必须满足“ClassName.fieldName”，否则校验失败。
-- controlKey重复：数据库唯一索引保证唯一性，重复会报错。
-- 模板发布后不可修改：jsonSchema发布后不可变更，需升级版本。
-- 实体类未注册：FormDataConverter中的CLASS_REGISTRY需注册新增业务实体，否则转换失败。
-- 文件上传异常：value为文件URL列表，需确保文件服务正常运行。
-- 数据安全：form_data存储JSON时应过滤敏感字段；提交后状态变更为已提交，禁止再次修改。
-- 并发覆盖：同一服务单实例保存需加乐观锁（version字段）。
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": {
+    "id": 1,
+    "templateName": "VAT申报模板",
+    "version": "1.0.0",
+    "countryCode": "DEU",
+    "serviceCodeL1": "VAT",
+    "serviceCodeL2": "IMPORT",
+    "serviceCodeL3": "STANDARD",
+    "jsonSchema": {},
+    "status": 0,
+    "remark": "标准VAT申报模板",
+    "controlDetails": []
+  }
+```
 
-章节来源
-- [VAT_EPR_动态表单技术方案.md:856-869](file://VAT_EPR_动态表单技术方案.md#L856-L869)
+**章节来源**
+- [FormTemplateController.java:49-52](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L49-L52)
 
-## 结论
-本API文档覆盖了VAT&EPR动态表单系统的核心接口，明确了各接口的HTTP方法、URL模式、请求参数、响应格式、状态码与错误处理，并提供了时序图与使用场景说明。建议在生产环境中完善认证与限流策略，优化数据库索引与缓存，确保数据安全与高并发下的稳定性。
+#### 更新模板
+**请求方法**：PUT  
+**请求URL**：`/api/form-template/{id}`  
+**路径参数**：
+- id：模板ID
 
-## 附录
-- 统一响应结构：Result，包含code、message与data字段，便于前后端约定一致的响应格式。
-- 数据模型：FormControl、FormTemplate、FormInstance分别对应自定义控件、服务单模板与服务单实例的持久化实体。
-- 表单数据转换：FormDataConverter负责将Map<controlKey, value>按类名分组并通过反射转换为业务实体对象。
+**请求体参数**：同创建模板
 
-章节来源
-- [VAT_EPR_动态表单技术方案.md:789-809](file://VAT_EPR_动态表单技术方案.md#L789-L809)
-- [VAT_EPR_动态表单技术方案.md:594-684](file://VAT_EPR_动态表单技术方案.md#L594-L684)
+**章节来源**
+- [FormTemplateController.java:31-35](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L31-L35)
+
+#### 发布模板
+**请求方法**：POST  
+**请求URL**：`/api/form-template/{id}/publish`  
+**路径参数**：
+- id：模板ID
+
+**章节来源**
+- [FormTemplateController.java:37-41](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L37-L41)
+
+#### 删除模板
+**请求方法**：DELETE  
+**请求URL**：`/api/form-template/{id}`  
+**路径参数**：
+- id：模板ID
+
+**章节来源**
+- [FormTemplateController.java:43-47](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L43-L47)
+
+## 服务单实例API
+
+### 接口概览
+服务单实例接口用于根据模板创建服务单实例、保存草稿、提交实例并管理业务状态流转。
+
+### 业务状态枚举
+系统支持完整的业务状态管理：
+
+| 状态代码 | 名称 | 前端标签类型 | 描述 |
+|---------|------|-------------|------|
+| 10 | 待提交 | info | 等待用户提交 |
+| 20 | 待审核 | warning | 等待审核人员处理 |
+| 30 | 待递交 | warning | 等待递交相关部门 |
+| 31 | 组织处理 | primary | 组织内部处理中 |
+| 32 | 税局处理 | primary | 税务部门处理中 |
+| 33 | 当地同事处理 | primary | 当地同事处理中 |
+| 40 | 已完成 | success | 业务处理完成 |
+| 50 | 已驳回 | danger | 业务被驳回 |
+| 99 | 已终止 | danger | 业务终止 |
+
+### 实例数据结构
+服务单实例包含以下核心数据：
+
+**基础信息**
+- templateId：模板ID
+- status：实例状态（草稿/已提交/已审核）
+- orderStatusId：业务状态ID
+
+**业务数据**
+- formData：表单数据（Map<controlKey, value>）
+- orderStatusId：当前业务状态
+- serviceStartTime：服务开始时间
+- serviceEndTime：服务结束时间
+
+### 接口详情
+
+#### 创建服务单实例
+**请求方法**：POST  
+**请求URL**：`/api/form-instance/create`  
+**请求体参数**：
+```json
+{
+  "templateId": 1
+}
+```
+
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": {
+    "instanceId": 1,
+    "templateInfo": {
+      "templateName": "VAT申报模板",
+      "version": "1.0.0",
+      "countryCode": "DEU",
+      "serviceCodeL3": "STANDARD"
+    },
+    "jsonSchema": {},
+    "controlDetails": [],
+    "formData": {}
+  }
+}
+```
+
+**章节来源**
+- [FormInstanceController.java:33-36](file://genetics-server/src/main/java/com/genetics/controller/FormInstanceController.java#L33-L36)
+- [FormInstanceCreateDTO.java:12-16](file://genetics-server/src/main/java/com/genetics/dto/FormInstanceCreateDTO.java#L12-L16)
+
+#### 保存服务单草稿
+**请求方法**：PUT  
+**请求URL**：`/api/form-instance/{id}/save`  
+**路径参数**：
+- id：实例ID
+
+**请求体参数**：
+```json
+{
+  "formData": {
+    "Company.companyName": "测试公司",
+    "Company.legalPerson": "张三"
+  },
+  "orderStatusId": 10,
+  "serviceStartTime": "2024-01-01 09:00:00",
+  "serviceEndTime": "2024-01-01 17:00:00"
+  }
+}
+```
+
+**章节来源**
+- [FormInstanceController.java:41-45](file://genetics-server/src/main/java/com/genetics/controller/FormInstanceController.java#L41-L45)
+- [FormInstanceSaveDTO.java:13-29](file://genetics-server/src/main/java/com/genetics/dto/FormInstanceSaveDTO.java#L13-L29)
+
+#### 更新业务状态
+**请求方法**：PUT  
+**请求URL**：`/api/form-instance/{id}/order-status`  
+**路径参数**：
+- id：实例ID
+
+**查询参数**：
+- orderStatusId：业务状态ID
+
+**章节来源**
+- [FormInstanceController.java:50-55](file://genetics-server/src/main/java/com/genetics/controller/FormInstanceController.java#L50-L55)
+
+#### 提交服务单
+**请求方法**：POST  
+**请求URL**：`/api/form-instance/{id}/submit`  
+**路径参数**：
+- id：实例ID
+
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": {
+    "Company": {
+      "companyName": "测试公司",
+      "legalPerson": "张三"
+    },
+    "CompanyLegalPerson": {
+      "companyLegalName": "张三"
+    }
+  }
+}
+```
+
+**数据转换说明**：提交时将formData按controlKey中的ClassName进行分组，通过反射转换为对应的业务实体对象。
+
+**章节来源**
+- [FormInstanceController.java:60-64](file://genetics-server/src/main/java/com/genetics/controller/FormInstanceController.java#L60-L64)
+
+#### 获取服务单详情
+**请求方法**：GET  
+**请求URL**：`/api/form-instance/{id}`  
+**路径参数**：
+- id：实例ID
+
+**章节来源**
+- [FormInstanceController.java:69-72](file://genetics-server/src/main/java/com/genetics/controller/FormInstanceController.java#L69-L72)
+
+#### 查询服务单列表
+**请求方法**：GET  
+**请求URL**：`/api/form-instance/list`  
+**查询参数**：
+- page：页码，默认1
+- size：每页条数，默认20
+- status：实例状态（可选）
+- orderStatusId：业务状态ID（可选）
+
+**章节来源**
+- [FormInstanceController.java:77-84](file://genetics-server/src/main/java/com/genetics/controller/FormInstanceController.java#L77-L84)
+
+#### 获取业务状态选项
+**请求方法**：GET  
+**请求URL**：`/api/form-instance/order-status/options`
+
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": [
+    {
+      "code": 10,
+      "name": "待提交",
+      "tagType": "info"
+    },
+    {
+      "code": 20,
+      "name": "待审核",
+      "tagType": "warning"
+    }
+  ]
+}
+```
+
+**章节来源**
+- [FormInstanceController.java:89-99](file://genetics-server/src/main/java/com/genetics/controller/FormInstanceController.java#L89-L99)
+
+## 基础数据API
+
+### 接口概览
+基础数据接口提供系统所需的枚举数据和配置信息，包括支持的国家列表等。
+
+### 国家代码枚举
+系统支持以下7个国家的业务：
+
+| 代码 | 中文名称 | 英文名称 |
+|-----|----------|----------|
+| DEU | 德国 | Germany |
+| FRA | 法国 | France |
+| ITA | 意大利 | Italy |
+| ESP | 西班牙 | Spain |
+| POL | 波兰 | Poland |
+| CZE | 捷克 | Czech Republic |
+| GBR | 英国 | United Kingdom |
+
+### 接口详情
+
+#### 获取支持的国家列表
+**请求方法**：GET  
+**请求URL**：`/api/basic/countries`
+
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": [
+    {
+      "code": "DEU",
+      "nameCn": "德国",
+      "nameEn": "Germany"
+    },
+    {
+      "code": "FRA",
+      "nameCn": "法国",
+      "nameEn": "France"
+    }
+  ]
+}
+```
+
+**章节来源**
+- [BasicDataController.java:26-36](file://genetics-server/src/main/java/com/genetics/controller/BasicDataController.java#L26-L36)
+- [CountryCode.java:9-34](file://genetics-server/src/main/java/com/genetics/enums/CountryCode.java#L9-L34)
+
+## API测试指南
+
+### Swagger UI访问
+系统集成Swagger UI，提供完整的API文档和在线测试功能。
+
+**访问地址**：`http://localhost:8080/swagger-ui.html`
+
+**功能特性**：
+- 在线API文档浏览
+- 参数测试和调试
+- 响应结果预览
+- 认证令牌管理
+
+### Postman测试集合
+推荐使用Postman进行API测试，包含以下集合：
+
+1. **自定义控件测试**：包含所有控件管理接口的测试用例
+2. **模板管理测试**：包含模板创建、更新、发布的完整流程
+3. **实例管理测试**：包含服务单从创建到提交的全流程测试
+4. **基础数据测试**：包含国家代码等枚举数据的查询测试
+
+### 前端API封装
+前端提供了完整的API封装，便于JavaScript调用：
+
+**控件API封装**：
+```javascript
+// 创建控件
+await createControl(data)
+
+// 更新控件
+await updateControl(id, data)
+
+// 删除控件
+await deleteControl(id)
+
+// 获取控件列表
+await listControls(params)
+
+// 获取所有控件
+await listAllControls()
+```
+
+**模板API封装**：
+```javascript
+// 创建模板
+await createTemplate(data)
+
+// 发布模板
+await publishTemplate(id)
+
+// 获取模板详情
+await getTemplate(id)
+
+// 获取模板列表
+await listTemplates(params)
+```
+
+**实例API封装**：
+```javascript
+// 创建实例
+await createInstance(data)
+
+// 保存草稿
+await saveInstance(id, data)
+
+// 提交实例
+await submitInstance(id)
+
+// 获取实例列表
+await listInstances(params)
+
+// 获取状态选项
+await getOrderStatusOptions()
+```
+
+**基础数据API封装**：
+```javascript
+// 获取国家列表
+await getCountries()
+```
+
+**章节来源**
+- [README.md:77-78](file://README.md#L77-L78)
+- [formControl.js:1-9](file://genetics-web/src/api/formControl.js#L1-L9)
+- [formTemplate.js:1-9](file://genetics-web/src/api/formTemplate.js#L1-L9)
+- [formInstance.js:1-11](file://genetics-web/src/api/formInstance.js#L1-L11)
+- [basic.js:1-4](file://genetics-web/src/api/basic.js#L1-L4)
+
+## 常见问题解答
+
+### 控件Key格式要求
+**问题**：controlKey必须满足什么格式？
+**答案**：controlKey必须满足`ClassName.fieldName`格式，例如`Company.companyName`。这是为了确保表单数据能够正确映射到对应的业务实体。
+
+**问题**：如何处理控件Key重复的问题？
+**答案**：系统会在数据库层面保证controlKey的唯一性。如果出现重复，会返回相应的错误信息。建议在设计控件时遵循统一的命名规范。
+
+### 模板发布后的限制
+**问题**：模板发布后还能修改吗？
+**答案**：模板发布后，其JSON Schema配置将被锁定，不能直接修改。如果需要修改，应该创建新版本并重新发布。
+
+**问题**：如何正确处理版本升级？
+**答案**：当需要修改已发布模板时，应该：
+1. 将模板状态改为草稿
+2. 修改模板内容
+3. 更新版本号
+4. 重新发布
+
+### 表单数据转换问题
+**问题**：提交时表单数据是如何转换的？
+**答案**：系统通过FormDataConverter将formData按controlKey中的ClassName进行分组，然后通过反射创建对应的业务实体对象。例如：
+```json
+{"Company.companyName": "测试公司"} 
+→ 
+{"Company": {"companyName": "测试公司"}}
+```
+
+**问题**：如何处理转换失败的情况？
+**答案**：如果转换失败，通常是因为：
+1. ClassName未在CLASS_REGISTRY中注册
+2. 字段类型不匹配
+3. 必填字段缺失
+
+### 文件上传处理
+**问题**：文件上传控件如何工作？
+**答案**：文件上传控件提交时，value字段包含文件URL列表。建议配合专业的文件存储服务（如OSS、MinIO）使用，前端负责文件上传，后端只存储文件URL。
+
+### 并发控制问题
+**问题**：如何防止并发覆盖？
+**答案**：系统采用乐观锁机制，通过version字段防止并发覆盖。当多个用户同时修改同一服务单实例时，系统会自动检测并阻止冲突。
+
+## 性能优化建议
+
+### 数据库优化
+1. **索引优化**：为常用查询字段建立合适的索引
+   - 模板查询：countryCode + serviceCodeL3 组合索引
+   - 控件查询：controlType + enabled 组合索引
+
+2. **分页查询**：所有列表接口都支持分页，建议合理设置每页大小
+
+3. **缓存策略**：
+   - 控件列表：缓存1小时
+   - 国家代码：缓存永久
+   - 模板详情：缓存5分钟
+
+### 接口优化
+1. **批量操作**：对于频繁的控件查询，使用`/api/form-control/all`接口获取所有控件
+
+2. **条件查询**：在查询模板列表时，尽量提供countryCode和serviceCodeL3参数
+
+3. **数据压缩**：对于大型JSON Schema，考虑启用GZIP压缩
+
+### 前端优化
+1. **懒加载**：模板设计器采用懒加载，减少初始加载时间
+
+2. **虚拟滚动**：列表组件使用虚拟滚动，提升大数据量下的性能
+
+3. **防抖处理**：搜索和筛选操作添加防抖，避免频繁请求
+
+## 安全注意事项
+
+### 认证授权
+1. **接口保护**：所有接口都应添加适当的认证和授权机制
+2. **权限控制**：不同用户角色应有不同的操作权限
+3. **CSRF防护**：启用CSRF防护机制
+
+### 数据安全
+1. **输入验证**：所有用户输入都必须经过严格的验证
+2. **SQL注入防护**：使用MyBatis-Plus的参数绑定机制
+3. **XSS防护**：对用户输入内容进行HTML转义
+
+### 文件安全
+1. **文件类型检查**：严格限制允许的文件类型
+2. **文件大小限制**：设置合理的文件大小上限
+3. **病毒扫描**：对上传文件进行病毒扫描
+
+### 日志监控
+1. **操作日志**：记录所有重要操作的日志
+2. **异常监控**：监控系统异常和错误
+3. **性能监控**：监控接口响应时间和数据库性能
+
+**章节来源**
+- [application.yml:33-40](file://genetics-server/src/main/resources/application.yml#L33-L40)
+- [README.md:77-78](file://README.md#L77-L78)

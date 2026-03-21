@@ -6,7 +6,7 @@ import com.genetics.dto.FormInstanceCreateDTO;
 import com.genetics.dto.FormInstanceDetailVO;
 import com.genetics.dto.FormInstanceSaveDTO;
 import com.genetics.entity.FormInstance;
-import com.genetics.enums.OrderStatus;
+import com.genetics.enums.ServeState;
 import com.genetics.service.FormInstanceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -88,9 +88,9 @@ public class FormInstanceController {
      */
     @GetMapping("/order-status/options")
     public Result<List<Map<String, Object>>> orderStatusOptions() {
-        List<Map<String, Object>> options = Arrays.stream(OrderStatus.values())
+        List<Map<String, Object>> options = Arrays.stream(ServeState.values())
                 .map(s -> Map.<String, Object>of(
-                        "code", s.getCode(),
+                        "code", s.getId(),
                         "name", s.getName(),
                         "tagType", s.getTagType()
                 ))

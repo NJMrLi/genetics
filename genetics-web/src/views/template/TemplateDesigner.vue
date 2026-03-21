@@ -40,7 +40,7 @@
     <div class="designer-body">
       <!-- 左侧控件面板 -->
       <div class="left-panel">
-        <control-panel :controls="allControls" />
+        <control-panel />
       </div>
       <!-- 右侧画板 -->
       <div class="right-panel">
@@ -57,7 +57,6 @@ import { ElMessage } from 'element-plus'
 import { useFormDesignerStore } from '@/stores/formDesigner'
 import ControlPanel from '@/components/FormDesigner/ControlPanel.vue'
 import CanvasPanel from '@/components/FormDesigner/Canvas.vue'
-import { listAllControls } from '@/api/formControl'
 import { getTemplate, createTemplate, updateTemplate } from '@/api/formTemplate'
 import { getCountries } from '@/api/basic'
 
@@ -91,7 +90,6 @@ const router = useRouter()
 const store = useFormDesignerStore()
 const templateId = route.params.id
 
-const allControls = ref([])
 const countries = ref([])
 const l1List = ref(SERVICE_CATEGORIES.filter(s => s.parentId === 0))
 const l2List = ref([])
@@ -152,11 +150,7 @@ function goBack() {
 }
 
 onMounted(async () => {
-  const [controlsRes, countriesRes] = await Promise.all([
-    listAllControls(),
-    getCountries()
-  ])
-  allControls.value = controlsRes.data
+  const countriesRes = await getCountries()
   countries.value = countriesRes.data
 
   if (templateId) {

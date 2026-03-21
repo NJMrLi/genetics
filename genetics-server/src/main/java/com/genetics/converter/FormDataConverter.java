@@ -1,13 +1,28 @@
 package com.genetics.converter;
 
 import com.genetics.entity.domain.Company;
-import com.genetics.entity.domain.CompanyLegalPerson;
+import com.genetics.entity.domain.CompanyAddress;
+import com.genetics.entity.domain.CompanyAttachment;
+import com.genetics.entity.domain.CompanyBank;
+import com.genetics.entity.domain.CompanyContact;
+import com.genetics.entity.domain.CompanyEprCategoryBrand;
+import com.genetics.entity.domain.CompanyOverseaManage;
+import com.genetics.entity.domain.CompanyPersonnel;
+import com.genetics.entity.domain.CompanySales;
+import com.genetics.entity.domain.CompanyTaxNo;
+import com.genetics.entity.domain.CompanyTaxNoAttachment;
+import com.genetics.entity.domain.CompanyUser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
-import java.util.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * 表单数据转换器
@@ -25,8 +40,19 @@ public class FormDataConverter {
     private static final Map<String, Class<?>> CLASS_REGISTRY = new LinkedHashMap<>();
 
     static {
+        // 公司基本信息
         CLASS_REGISTRY.put("Company", Company.class);
-        CLASS_REGISTRY.put("CompanyLegalPerson", CompanyLegalPerson.class);
+        CLASS_REGISTRY.put("CompanyAddress", CompanyAddress.class);
+        CLASS_REGISTRY.put("CompanyAttachment", CompanyAttachment.class);
+        CLASS_REGISTRY.put("CompanyBank", CompanyBank.class);
+        CLASS_REGISTRY.put("CompanyContact", CompanyContact.class);
+        CLASS_REGISTRY.put("CompanyEprCategoryBrand", CompanyEprCategoryBrand.class);
+        CLASS_REGISTRY.put("CompanyOverseaManage", CompanyOverseaManage.class);
+        CLASS_REGISTRY.put("CompanyPersonnel", CompanyPersonnel.class);
+        CLASS_REGISTRY.put("CompanySales", CompanySales.class);
+        CLASS_REGISTRY.put("CompanyTaxNo", CompanyTaxNo.class);
+        CLASS_REGISTRY.put("CompanyTaxNoAttachment", CompanyTaxNoAttachment.class);
+        CLASS_REGISTRY.put("CompanyUser", CompanyUser.class);
     }
 
     /**
@@ -67,7 +93,7 @@ public class FormDataConverter {
             }
             Object instance = createAndPopulate(clazz, entry.getValue());
             result.put(className, instance);
-            log.info("【转换成功】[{}] → {}", className, instance);
+            log.debug("【转换成功】[{}] → {}", className, instance);
         }
         return result;
     }
@@ -121,14 +147,30 @@ public class FormDataConverter {
     private Object convertValue(Class<?> targetType, Object value) {
         if (value == null) return null;
         if (targetType.isInstance(value)) return value;
+
         String strVal = value.toString();
-        if (targetType == String.class) return strVal;
-        if (targetType == Integer.class || targetType == int.class) return Integer.parseInt(strVal);
-        if (targetType == Long.class || targetType == long.class) return Long.parseLong(strVal);
-        if (targetType == Double.class || targetType == double.class) return Double.parseDouble(strVal);
-        if (targetType == Float.class || targetType == float.class) return Float.parseFloat(strVal);
-        if (targetType == Boolean.class || targetType == boolean.class) return Boolean.parseBoolean(strVal);
-        if (targetType == BigDecimal.class) return new BigDecimal(strVal);
+        if (strVal.isEmpty()) return null;
+
+        try {
+            if (targetType == String.class) return strVal;
+            if (targetType == Integer.class || targetType == int.class) return Integer.parseInt(strVal);
+            if (targetType == Long.class || targetType == long.class) return Long.parseLong(strVal);
+            if (targetType == Double.class || targetType == double.class) return Double.parseDouble(strVal);
+            if (targetType == Float.class || targetType == float.class) return Float.parseFloat(strVal);
+            if (targetType == Boolean.class || targetType == boolean.class) return Boolean.parseBoolean(strVal);
+            if (targetType == BigDecimal.class) return new BigDecimal(strVal);
+            if (targetType == LocalDate.class) return LocalDate.parse(strVal);
+            if (targetType == LocalDateTime.class) {
+                // 支持多种格式
+                if (strVal.contains("T")) {
+                    return LocalDateTime.parse(strVal);
+                } else {
+                    return LocalDateTime.parse(strVal, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("类型转换失败: {} -> {}, value={}", value.getClass().getSimpleName(), targetType.getSimpleName(), strVal);
+        }
         return value;
     }
 
@@ -138,5 +180,19 @@ public class FormDataConverter {
     public static void registerClass(String key, Class<?> clazz) {
         CLASS_REGISTRY.put(key, clazz);
         log.info("已注册实体类: {} -> {}", key, clazz.getName());
+    }
+
+    /**
+     * 获取已注册的类
+     */
+    public static Class<?> getRegisteredClass(String key) {
+        return CLASS_REGISTRY.get(key);
+    }
+
+    /**
+     * 获取所有已注册的类名
+     */
+    public static java.util.Set<String> getRegisteredClassNames() {
+        return CLASS_REGISTRY.keySet();
     }
 }

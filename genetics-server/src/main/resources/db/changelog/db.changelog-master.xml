@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 表结构初始化 -->
+    <changeSet id="001-init-schema" author="genetics">
+        <sqlFile path="sql/001-init-schema.sql"
+                 relativeToChangelogFile="true"
+                 encoding="UTF-8"
+                 splitStatements="true"
+                 stripComments="true"/>
+    </changeSet>
+
+    <!-- 控件数据初始化 -->
+    <changeSet id="002-form-controls-data" author="genetics">
+        <sqlFile path="sql/002-form-controls-data.sql"
+                 relativeToChangelogFile="true"
+                 encoding="UTF-8"
+                 splitStatements="true"
+                 stripComments="true"/>
+    </changeSet>
+
+    <!-- 添加业务类型字段 -->
+    <changeSet id="003-add-business-type" author="genetics">
+        <sqlFile path="sql/003-add-business-type.sql"
+                 relativeToChangelogFile="true"
+                 encoding="UTF-8"
+                 splitStatements="true"
+                 stripComments="true"/>
+    </changeSet>
+
+</databaseChangeLog>

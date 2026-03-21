@@ -50,12 +50,38 @@ public class FormControlController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String controlType,
+            @RequestParam(required = false) String businessType,
             @RequestParam(required = false) String keyword) {
-        return Result.success(PageResult.of(formControlService.page(page, size, controlType, keyword)));
+        return Result.success(PageResult.of(formControlService.page(page, size, controlType, businessType, keyword)));
     }
 
     @GetMapping("/all")
     public Result<List<FormControl>> listAll() {
         return Result.success(formControlService.listAll());
+    }
+
+    /**
+     * 按业务类型筛选控件
+     */
+    @GetMapping("/by-business-type")
+    public Result<List<FormControl>> listByBusinessType(
+            @RequestParam(required = false) String businessType) {
+        return Result.success(formControlService.listByBusinessType(businessType));
+    }
+
+    /**
+     * 获取按业务类型分组的控件列表
+     */
+    @GetMapping("/grouped")
+    public Result<Map<String, List<FormControl>>> listGroupedByBusinessType() {
+        return Result.success(formControlService.listGroupedByBusinessType());
+    }
+
+    /**
+     * 获取所有业务类型列表
+     */
+    @GetMapping("/business-types")
+    public Result<List<String>> listAllBusinessTypes() {
+        return Result.success(formControlService.listAllBusinessTypes());
     }
 }

@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -66,9 +68,10 @@ public class FormControlServiceImpl implements FormControlService {
     }
 
     @Override
-    public Page<FormControl> page(int pageNum, int pageSize, String controlType, String keyword) {
+    public Page<FormControl> page(int pageNum, int pageSize, String controlType, String businessType, String keyword) {
         LambdaQueryWrapper<FormControl> wrapper = new LambdaQueryWrapper<FormControl>()
                 .eq(StringUtils.hasText(controlType), FormControl::getControlType, controlType)
+                .eq(StringUtils.hasText(businessType), FormControl::getBusinessType, businessType)
                 .and(StringUtils.hasText(keyword), w -> w
                         .like(FormControl::getControlName, keyword)
                         .or().like(FormControl::getControlKey, keyword))
@@ -82,6 +85,41 @@ public class FormControlServiceImpl implements FormControlService {
                 new LambdaQueryWrapper<FormControl>()
                         .eq(FormControl::getEnabled, true)
                         .orderByAsc(FormControl::getSort));
+    }
+
+    @Override
+    public List<FormControl> listByBusinessType(String businessType) {
+        return formControlMapper.selectList(
+                new LambdaQueryWrapper<FormControl>()
+                        .eq(FormControl::getEnabled, true)
+                        .eq(StringUtils.hasText(businessType), FormControl::getBusinessType, businessType)
+                        .orderByAsc(FormControl::getSort));
+    }
+
+    @Override
+    public Map<String, List<FormControl>> listGroupedByBusinessType() {
+        List<FormControl> allControls = listAll();
+        return allControls.stream()
+                .filter(c -> c.getBusinessType() != null)
+                .collect(Collectors.groupingBy(
+                        FormControl::getBusinessType,
+                        java.util.LinkedHashMap::new,
+                        Collectors.toList()));
+    }
+
+    @Override
+    public List<String> listAllBusinessTypes() {
+        List<FormControl> controls = formControlMapper.selectList(
+                new LambdaQueryWrapper<FormControl>()
+                        .select(FormControl::getBusinessType)
+                        .eq(FormControl::getEnabled, true)
+                        .isNotNull(FormControl::getBusinessType)
+                        .groupBy(FormControl::getBusinessType)
+                        .orderByAsc(FormControl::getBusinessType));
+        return controls.stream()
+                .map(FormControl::getBusinessType)
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -101,6 +139,12 @@ public class FormControlServiceImpl implements FormControlService {
         entity.setControlName(dto.getControlName());
         entity.setControlKey(dto.getControlKey());
         entity.setControlType(dto.getControlType());
+        // 业务类型：优先使用传入值，否则从 controlKey 中提取
+        String businessType = dto.getBusinessType();
+        if (!StringUtils.hasText(businessType) && dto.getControlKey().contains(".")) {
+            businessType = dto.getControlKey().split("\\.")[0];
+        }
+        entity.setBusinessType(businessType);
         entity.setPlaceholder(blankToNull(dto.getPlaceholder()));
         entity.setTips(blankToNull(dto.getTips()));
         entity.setRequired(dto.getRequired());

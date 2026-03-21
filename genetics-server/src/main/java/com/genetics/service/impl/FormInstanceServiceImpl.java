@@ -13,7 +13,7 @@ import com.genetics.dto.FormTemplateDetailVO;
 import com.genetics.entity.FormInstance;
 import com.genetics.entity.FormTemplate;
 import com.genetics.enums.InstanceStatus;
-import com.genetics.enums.OrderStatus;
+import com.genetics.enums.ServeState;
 import com.genetics.mapper.FormInstanceMapper;
 import com.genetics.mapper.FormTemplateMapper;
 import com.genetics.service.FormInstanceService;
@@ -53,7 +53,7 @@ public class FormInstanceServiceImpl implements FormInstanceService {
         instance.setServiceCodeL3(template.getServiceCodeL3());
         instance.setFormData("{}");
         instance.setStatus(InstanceStatus.DRAFT.getCode());
-        instance.setOrderStatusId(OrderStatus.PENDING_SUBMIT.getCode());
+        instance.setOrderStatusId(ServeState.WAIT_SUBMIT.getId());
         formInstanceMapper.insert(instance);
 
         // 构建详情VO
@@ -134,8 +134,10 @@ public class FormInstanceServiceImpl implements FormInstanceService {
 
     @Override
     public void updateOrderStatus(Long id, Integer orderStatusId) {
-        OrderStatus.of(orderStatusId)
-                .orElseThrow(() -> new IllegalArgumentException("无效的业务状态ID: " + orderStatusId));
+        ServeState state = ServeState.getServeStateById(orderStatusId);
+        if (state == null) {
+            throw new IllegalArgumentException("无效的业务状态ID: " + orderStatusId);
+        }
         FormInstance instance = requireExist(id);
         instance.setOrderStatusId(orderStatusId);
         formInstanceMapper.updateById(instance);
@@ -183,9 +185,9 @@ public class FormInstanceServiceImpl implements FormInstanceService {
         vo.setFormData(formData);
         vo.setStatus(instance.getStatus());
         // 业务状态
-        int osId = instance.getOrderStatusId() != null ? instance.getOrderStatusId() : OrderStatus.PENDING_SUBMIT.getCode();
+        int osId = instance.getOrderStatusId() != null ? instance.getOrderStatusId() : ServeState.WAIT_SUBMIT.getId();
         vo.setOrderStatusId(osId);
-        vo.setOrderStatusName(OrderStatus.nameOf(osId));
+        vo.setOrderStatusName(ServeState.getName(osId));
         vo.setServiceStartTime(instance.getServiceStartTime());
         vo.setServiceEndTime(instance.getServiceEndTime());
         vo.setSubmitTime(instance.getSubmitTime());

@@ -2,6 +2,15 @@
   <div class="control-panel">
     <div class="panel-header">
       <span>控件列表</span>
+      <el-select
+        v-model="selectedBizType"
+        placeholder="业务分组"
+        size="small"
+        clearable
+        @change="onBizTypeChange"
+      >
+        <el-option v-for="bt in bizTypeOptions" :key="bt" :value="bt" :label="GROUP_MAPPING[bt] || bt" />
+      </el-select>
       <el-input
         v-model="keyword"
         placeholder="搜索控件"
@@ -10,9 +19,8 @@
         prefix-icon="Search"
       />
     </div>
-    <div class="panel-body">
-      <!-- 按类型分组 -->
-      <div v-for="group in groupedControls" :key="group.type" class="control-group">
+    <div v-loading="loading" class="panel-body">
+      <div v-for="group in displayGroups" :key="group.bizType" class="control-group">
         <div class="group-title">{{ group.label }}</div>
         <draggable
           :list="group.controls"
@@ -33,51 +41,77 @@
           </template>
         </draggable>
       </div>
-      <el-empty v-if="!controls.length" description="暂无控件" :image-size="60" />
+      <el-empty v-if="!loading && !displayGroups.length" description="暂无控件" :image-size="60" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import draggable from 'vuedraggable'
+import { getGroupedControls, getControlsByBusinessType, getBusinessTypes } from '@/api/formControl'
 
-const props = defineProps({
-  controls: {
-    type: Array,
-    default: () => []
-  }
-})
+const GROUP_MAPPING = {
+  'Company': '公司信息',
+  'CompanyLegalPerson': '法人信息',
+  'CompanyTaxNo': '税号信息',
+  'CompanyAttachment': '附件信息',
+  'CompanyService': '服务信息',
+  'CompanyBank': '銀行信息',
+  'CompanyContact': '联系人信息',
+  'CompanyAddress': '地址信息',
+  'CompanyShareholder': '股东信息',
+  'CompanyBusiness': '业务信息'
+}
 
+const loading = ref(false)
 const keyword = ref('')
+const selectedBizType = ref('')
+const bizTypeOptions = ref([])
 
-const TYPE_GROUPS = [
-  { type: 'INPUT', label: '输入框' },
-  { type: 'TEXTAREA', label: '多行文本' },
-  { type: 'NUMBER', label: '数字' },
-  { type: 'SELECT', label: '下拉框' },
-  { type: 'SWITCH', label: '开关' },
-  { type: 'DATE', label: '日期' },
-  { type: 'UPLOAD', label: '文件上传' }
-]
+// 分组数据：{ Company: [...], CompanyBank: [...] }
+const groupedData = ref({})
 
-const filteredControls = computed(() => {
-  if (!keyword.value) return props.controls
+// 根据分组数据 + 关键词过滤，转为数组展示
+const displayGroups = computed(() => {
   const kw = keyword.value.toLowerCase()
-  return props.controls.filter(c =>
-    c.controlName.toLowerCase().includes(kw) ||
-    c.controlKey.toLowerCase().includes(kw)
-  )
-})
-
-const groupedControls = computed(() => {
-  return TYPE_GROUPS
-    .map(g => ({
-      ...g,
-      controls: filteredControls.value.filter(c => c.controlType === g.type)
+  return Object.entries(groupedData.value)
+    .map(([bizType, controls]) => ({
+      bizType,
+      label: GROUP_MAPPING[bizType] || bizType,
+      controls: kw
+        ? controls.filter(c =>
+            c.controlName.toLowerCase().includes(kw) ||
+            c.controlKey.toLowerCase().includes(kw)
+          )
+        : controls
     }))
     .filter(g => g.controls.length > 0)
 })
+
+async function loadAllGroups() {
+  loading.value = true
+  try {
+    const res = await getGroupedControls()
+    groupedData.value = res.data || {}
+  } finally {
+    loading.value = false
+  }
+}
+
+async function onBizTypeChange(val) {
+  if (!val) {
+    await loadAllGroups()
+    return
+  }
+  loading.value = true
+  try {
+    const res = await getControlsByBusinessType(val)
+    groupedData.value = { [val]: res.data || [] }
+  } finally {
+    loading.value = false
+  }
+}
 
 function cloneControl(control) {
   return {
@@ -86,7 +120,7 @@ function cloneControl(control) {
     controlId: control.id,
     controlKey: control.controlKey,
     controlType: control.controlType,
-    label: control.controlName   // 控件名称作为表单标签
+    label: control.controlName
   }
 }
 
@@ -102,6 +136,14 @@ function getIcon(type) {
   }
   return map[type] || 'EditPen'
 }
+
+onMounted(async () => {
+  const [btRes] = await Promise.all([
+    getBusinessTypes()
+  ])
+  bizTypeOptions.value = btRes.data || []
+  await loadAllGroups()
+})
 </script>
 
 <style scoped>

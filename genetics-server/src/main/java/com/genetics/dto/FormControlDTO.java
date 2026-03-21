@@ -21,6 +21,9 @@ public class FormControlDTO {
     @NotBlank(message = "控件类型不能为空")
     private String controlType;
 
+    /** 业务类型（实体类名） */
+    private String businessType;
+
     private String placeholder;
     private String tips;
 

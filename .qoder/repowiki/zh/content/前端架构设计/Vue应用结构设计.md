@@ -2,8 +2,26 @@
 
 <cite>
 **本文档引用的文件**
-- [VAT_EPR_动态表单技术方案.md](file://VAT_EPR_动态表单技术方案.md)
+- [InstanceForm.vue](file://genetics-web/src/views/instance/InstanceForm.vue)
+- [InstanceList.vue](file://genetics-web/src/views/instance/InstanceList.vue)
+- [ControlPanel.vue](file://genetics-web/src/components/FormDesigner/ControlPanel.vue)
+- [DynamicForm.vue](file://genetics-web/src/components/DynamicForm/DynamicForm.vue)
+- [TemplateDesigner.vue](file://genetics-web/src/views/template/TemplateDesigner.vue)
+- [formDesigner.js](file://genetics-web/src/stores/formDesigner.js)
+- [index.js](file://genetics-web/src/router/index.js)
+- [main.js](file://genetics-web/src/main.js)
+- [App.vue](file://genetics-web/src/App.vue)
+- [formInstance.js](file://genetics-web/src/api/formInstance.js)
+- [formTemplate.js](file://genetics-web/src/api/formTemplate.js)
 </cite>
+
+## 更新摘要
+**所做更改**
+- 更新了核心组件架构部分，反映新增的InstanceForm.vue、InstanceList.vue、ControlPanel.vue等组件
+- 完善了动态表单系统设计，增加了实例管理相关的组件结构
+- 更新了路由配置，包含新的实例管理路由
+- 增强了状态管理设计，反映了实例状态的管理需求
+- 扩展了组件通信模式，展示了实例表单与动态表单的交互
 
 ## 目录
 1. [项目概述](#项目概述)
@@ -34,7 +52,7 @@ VAT & EPR 动态表单系统是一个基于Vue 3.4.x和Element Plus 2.x构建的
 
 ## 项目结构
 
-基于技术方案文档，Vue前端项目采用清晰的模块化组织结构：
+基于当前项目结构，Vue前端项目采用清晰的模块化组织结构：
 
 ```mermaid
 graph TB
@@ -43,7 +61,7 @@ subgraph "API层"
 API1[api/formControl.js]
 API2[api/formTemplate.js]
 API3[api/formInstance.js]
-API4[api/serviceCategory.js]
+API4[api/request.js]
 end
 subgraph "视图层"
 V1[views/control/ControlList.vue]
@@ -55,33 +73,29 @@ end
 subgraph "组件层"
 subgraph "DynamicForm/"
 DF1[DynamicForm.vue]
-DF2[controls/InputControl.vue]
-DF3[controls/SelectControl.vue]
-DF4[controls/SwitchControl.vue]
-DF5[controls/UploadControl.vue]
-DF6[controls/TextareaControl.vue]
-DF7[controls/DateControl.vue]
-DF8[ControlRenderer.vue]
+DF2[ControlRenderer.vue]
 end
 subgraph "FormDesigner/"
-FD1[FormDesigner.vue]
-FD2[ControlPanel.vue]
-FD3[Canvas.vue]
-FD4[GridCell.vue]
+FD1[ControlPanel.vue]
+FD2[Canvas.vue]
 end
 end
 subgraph "状态管理"
 S1[stores/formDesigner.js]
-S2[stores/formInstance.js]
+end
+subgraph "路由"
+R1[router/index.js]
 end
 end
 ```
 
 **图表来源**
-- [VAT_EPR_动态表单技术方案.md:815-852](file://VAT_EPR_动态表单技术方案.md#L815-L852)
+- [main.js:1-23](file://genetics-web/src/main.js#L1-L23)
+- [index.js:1-46](file://genetics-web/src/router/index.js#L1-L46)
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md:815-852](file://VAT_EPR_动态表单技术方案.md#L815-L852)
+- [main.js:1-23](file://genetics-web/src/main.js#L1-L23)
+- [index.js:1-46](file://genetics-web/src/router/index.js#L1-L46)
 
 ## 核心组件架构
 
@@ -95,40 +109,52 @@ class DynamicForm {
 +Object schema
 +Object formData
 +Array controlDetails
-+renderForm()
++Object formRef
++computed controlMap
++computed gridStyle
 +buildRules()
-+handleSubmit()
++validate()
 }
 class ControlRenderer {
 +String controlType
-+Object props
++Object cell
++Object control
 +resolveComponent()
 +resolveProps()
 }
-class InputControl {
-+String vModel
-+String placeholder
-+Boolean required
-+validateInput()
+class InstanceForm {
++Object detail
++Object formData
++Object metaForm
++Array orderStatusOptions
++Object dynamicFormRef
++Object submitResult
++loadOrderStatusOptions()
++handleSave()
++handleSubmit()
++goBack()
 }
-class SelectControl {
-+Array options
-+String vModel
-+validateSelection()
-}
-class UploadControl {
-+Object uploadConfig
-+Array fileList
-+handleUpload()
+class InstanceList {
++Array list
++Object query
++Array orderStatusOptions
++Array templates
++Object selectedTemplate
++orderStatusName()
++orderStatusTag()
++fetchList()
++handleCreate()
++handleSubmit()
 }
 DynamicForm --> ControlRenderer : "使用"
-ControlRenderer --> InputControl : "渲染"
-ControlRenderer --> SelectControl : "渲染"
-ControlRenderer --> UploadControl : "渲染"
+InstanceForm --> DynamicForm : "包含"
+InstanceList --> InstanceForm : "导航"
 ```
 
 **图表来源**
-- [VAT_EPR_动态表单技术方案.md:833-848](file://VAT_EPR_动态表单技术方案.md#L833-L848)
+- [DynamicForm.vue:44-137](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L44-L137)
+- [InstanceForm.vue:101-207](file://genetics-web/src/views/instance/InstanceForm.vue#L101-L207)
+- [InstanceList.vue:85-172](file://genetics-web/src/views/instance/InstanceList.vue#L85-L172)
 
 ### 表单设计器架构
 
@@ -152,10 +178,12 @@ Designer->>Store : 更新控件配置
 ```
 
 **图表来源**
-- [VAT_EPR_动态表单技术方案.md:415-435](file://VAT_EPR_动态表单技术方案.md#L415-L435)
+- [ControlPanel.vue:17-91](file://genetics-web/src/components/FormDesigner/ControlPanel.vue#L17-L91)
+- [formDesigner.js:8-136](file://genetics-web/src/stores/formDesigner.js#L8-L136)
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md:833-848](file://VAT_EPR_动态表单技术方案.md#L833-L848)
+- [ControlPanel.vue:1-154](file://genetics-web/src/components/FormDesigner/ControlPanel.vue#L1-L154)
+- [formDesigner.js:1-136](file://genetics-web/src/stores/formDesigner.js#L1-L136)
 
 ## 动态表单系统设计
 
@@ -211,7 +239,8 @@ FORM_TEMPLATE ||--o{ FORM_CONTROL : "引用"
 ```
 
 **图表来源**
-- [VAT_EPR_动态表单技术方案.md:31-153](file://VAT_EPR_动态表单技术方案.md#L31-L153)
+- [formTemplate.js:1-9](file://genetics-web/src/api/formTemplate.js#L1-L9)
+- [formInstance.js:1-11](file://genetics-web/src/api/formInstance.js#L1-L11)
 
 ### 动态渲染流程
 
@@ -242,10 +271,10 @@ Validate --> End([渲染完成])
 ```
 
 **图表来源**
-- [VAT_EPR_动态表单技术方案.md:531-548](file://VAT_EPR_动态表单技术方案.md#L531-L548)
+- [DynamicForm.vue:94-122](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L94-L122)
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md:482-548](file://VAT_EPR_动态表单技术方案.md#L482-L548)
+- [DynamicForm.vue:1-137](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L1-L137)
 
 ## 状态管理设计
 
@@ -262,28 +291,22 @@ DS2[canvasState]
 DS3[controlPalette]
 DS4[gridLayout]
 end
-subgraph "formInstance.js"
-IS1[instanceState]
-IS2[formData]
-IS3[validationState]
-IS4[templateSchema]
-end
 end
 subgraph "组件层"
-C1[FormDesigner.vue]
+C1[TemplateDesigner.vue]
 C2[DynamicForm.vue]
 C3[ControlPanel.vue]
 C4[InstanceForm.vue]
+C5[InstanceList.vue]
 end
 DS1 --> C1
 DS4 --> C1
-IS2 --> C2
-IS4 --> C2
-IS3 --> C4
+C4 --> C2
 ```
 
 **图表来源**
-- [VAT_EPR_动态表单技术方案.md:849-851](file://VAT_EPR_动态表单技术方案.md#L849-L851)
+- [formDesigner.js:8-136](file://genetics-web/src/stores/formDesigner.js#L8-L136)
+- [TemplateDesigner.vue:57-91](file://genetics-web/src/views/template/TemplateDesigner.vue#L57-L91)
 
 ### 状态同步机制
 
@@ -304,7 +327,7 @@ UI->>UI : 视图重新渲染
 ```
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md:849-851](file://VAT_EPR_动态表单技术方案.md#L849-L851)
+- [formDesigner.js:1-136](file://genetics-web/src/stores/formDesigner.js#L1-L136)
 
 ## 组件通信模式
 
@@ -356,7 +379,7 @@ ProvideContext --> End
 ```
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md:550-577](file://VAT_EPR_动态表单技术方案.md#L550-L577)
+- [DynamicForm.vue:24-41](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L24-L41)
 
 ## 路由配置
 
@@ -405,6 +428,12 @@ end
 end
 ```
 
+**图表来源**
+- [index.js:3-38](file://genetics-web/src/router/index.js#L3-L38)
+
+**章节来源**
+- [index.js:1-46](file://genetics-web/src/router/index.js#L1-L46)
+
 ## 构建配置与优化
 
 ### Vite配置策略
@@ -436,7 +465,7 @@ end
 - **性能监控**: 集成性能分析工具
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md:22-27](file://VAT_EPR_动态表单技术方案.md#L22-L27)
+- [main.js:18-20](file://genetics-web/src/main.js#L18-L20)
 
 ## 性能优化策略
 
