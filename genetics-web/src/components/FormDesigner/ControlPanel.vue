@@ -1,53 +1,70 @@
 <template>
   <div class="control-panel">
     <div class="panel-header">
-      <span>控件列表</span>
-      <el-select
-        v-model="selectedBizType"
+      <span class="panel-title">控件列表</span>
+      <n-select
+        v-model:value="selectedBizType"
+        :options="bizTypeOptionsFormatted"
         placeholder="业务分组"
-        size="small"
         clearable
-        @change="onBizTypeChange"
-      >
-        <el-option v-for="bt in bizTypeOptions" :key="bt" :value="bt" :label="GROUP_MAPPING[bt] || bt" />
-      </el-select>
-      <el-input
-        v-model="keyword"
-        placeholder="搜索控件"
         size="small"
-        clearable
-        prefix-icon="Search"
+        @update:value="onBizTypeChange"
       />
+      <n-input
+        v-model:value="keyword"
+        placeholder="搜索控件"
+        clearable
+        size="small"
+      >
+        <template #prefix>
+          <n-icon><SearchOutline /></n-icon>
+        </template>
+      </n-input>
     </div>
-    <div v-loading="loading" class="panel-body">
-      <div v-for="group in displayGroups" :key="group.bizType" class="control-group">
-        <div class="group-title">{{ group.label }}</div>
-        <draggable
-          :list="group.controls"
-          :group="{ name: 'controls', pull: 'clone', put: false }"
-          :clone="cloneControl"
-          item-key="id"
-          class="drag-area"
-          :sort="false"
-        >
-          <template #item="{ element }">
-            <div class="control-item" :title="element.controlKey">
-              <el-icon class="control-icon"><component :is="getIcon(element.controlType)" /></el-icon>
-              <div class="control-info">
-                <div class="control-name">{{ element.controlName }}</div>
-                <div class="control-key">{{ element.controlKey }}</div>
+    <div class="panel-body">
+      <n-spin :show="loading">
+        <div v-for="group in displayGroups" :key="group.bizType" class="control-group">
+          <div class="group-title">{{ group.label }}</div>
+          <draggable
+            :list="group.controls"
+            :group="{ name: 'controls', pull: 'clone', put: false }"
+            :clone="cloneControl"
+            item-key="id"
+            class="drag-area"
+            :sort="false"
+          >
+            <template #item="{ element }">
+              <div class="control-item" :title="element.controlKey">
+                <n-icon :size="18" :color="'#18a058'">
+                  <component :is="getIcon(element.controlType)" />
+                </n-icon>
+                <div class="control-info">
+                  <div class="control-name">{{ element.controlName }}</div>
+                  <div class="control-key">{{ element.controlKey }}</div>
+                </div>
               </div>
-            </div>
-          </template>
-        </draggable>
-      </div>
-      <el-empty v-if="!loading && !displayGroups.length" description="暂无控件" :image-size="60" />
+            </template>
+          </draggable>
+        </div>
+        <n-empty v-if="!loading && !displayGroups.length" description="暂无控件" size="small" />
+      </n-spin>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { h, ref, computed, onMounted } from 'vue'
+import { NSelect, NInput, NIcon, NSpin, NEmpty } from 'naive-ui'
+import {
+  SearchOutline,
+  CreateOutline,
+  DocumentTextOutline,
+  CalculatorOutline,
+  ChevronDownOutline,
+  ToggleOutline,
+  CalendarOutline,
+  CloudUploadOutline
+} from '@vicons/ionicons5'
 import draggable from 'vuedraggable'
 import { getGroupedControls, getControlsByBusinessType, getBusinessTypes } from '@/api/formControl'
 
@@ -68,11 +85,15 @@ const loading = ref(false)
 const keyword = ref('')
 const selectedBizType = ref('')
 const bizTypeOptions = ref([])
-
-// 分组数据：{ Company: [...], CompanyBank: [...] }
 const groupedData = ref({})
 
-// 根据分组数据 + 关键词过滤，转为数组展示
+const bizTypeOptionsFormatted = computed(() =>
+  bizTypeOptions.value.map(bt => ({
+    label: GROUP_MAPPING[bt] || bt,
+    value: bt
+  }))
+)
+
 const displayGroups = computed(() => {
   const kw = keyword.value.toLowerCase()
   return Object.entries(groupedData.value)
@@ -126,21 +147,19 @@ function cloneControl(control) {
 
 function getIcon(type) {
   const map = {
-    INPUT: 'EditPen',
-    TEXTAREA: 'Memo',
-    NUMBER: 'Coin',
-    SELECT: 'ArrowDown',
-    SWITCH: 'Switch',
-    DATE: 'Calendar',
-    UPLOAD: 'Upload'
+    INPUT: CreateOutline,
+    TEXTAREA: DocumentTextOutline,
+    NUMBER: CalculatorOutline,
+    SELECT: ChevronDownOutline,
+    SWITCH: ToggleOutline,
+    DATE: CalendarOutline,
+    UPLOAD: CloudUploadOutline
   }
-  return map[type] || 'EditPen'
+  return map[type] || CreateOutline
 }
 
 onMounted(async () => {
-  const [btRes] = await Promise.all([
-    getBusinessTypes()
-  ])
+  const btRes = await getBusinessTypes()
   bizTypeOptions.value = btRes.data || []
   await loadAllGroups()
 })
@@ -152,44 +171,82 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   background: #fff;
-  border-right: 1px solid #eee;
 }
+
 .panel-header {
   padding: 12px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #e0e0e6;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-weight: bold;
-  font-size: 14px;
 }
-.panel-body { flex: 1; overflow-y: auto; padding: 8px; }
-.control-group { margin-bottom: 12px; }
+
+.panel-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.control-group {
+  margin-bottom: 12px;
+}
+
 .group-title {
   font-size: 12px;
-  color: #909399;
+  color: #666;
   padding: 4px 8px;
-  background: #f5f7fa;
+  background: #f5f5f5;
   border-radius: 4px;
   margin-bottom: 6px;
 }
-.drag-area { min-height: 10px; }
+
+.drag-area {
+  min-height: 10px;
+}
+
 .control-item {
   display: flex;
   align-items: center;
   padding: 8px;
   margin-bottom: 4px;
-  background: #f0f7ff;
-  border: 1px solid #b3d8ff;
+  background: #f0f9f4;
+  border: 1px solid #d0e8d8;
   border-radius: 6px;
   cursor: grab;
   gap: 8px;
   transition: box-shadow 0.2s;
 }
-.control-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-.control-item:active { cursor: grabbing; }
-.control-icon { color: #409eff; font-size: 16px; flex-shrink: 0; }
-.control-info { flex: 1; min-width: 0; }
-.control-name { font-size: 13px; color: #303133; font-weight: 500; }
-.control-key { font-size: 11px; color: #909399; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.control-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.control-item:active {
+  cursor: grabbing;
+}
+
+.control-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.control-name {
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
+}
+
+.control-key {
+  font-size: 11px;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 </style>

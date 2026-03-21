@@ -1,111 +1,105 @@
 <template>
   <!-- INPUT -->
-  <el-input
+  <n-input
     v-if="controlType === 'INPUT'"
-    :model-value="modelValue"
-    :placeholder="control?.placeholder || '请输入'"
+    :value="modelValue"
+    :placeholder="control?.placeholder || ''"
     :disabled="disabled"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:value="emit('update:modelValue', $event)"
   />
 
   <!-- TEXTAREA -->
-  <el-input
+  <n-input
     v-else-if="controlType === 'TEXTAREA'"
     type="textarea"
-    :model-value="modelValue"
-    :placeholder="control?.placeholder || '请输入'"
+    :value="modelValue"
+    :placeholder="control?.placeholder || ''"
     :disabled="disabled"
     :rows="3"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:value="emit('update:modelValue', $event)"
   />
 
   <!-- NUMBER -->
-  <el-input-number
+  <n-input-number
     v-else-if="controlType === 'NUMBER'"
-    :model-value="modelValue"
+    :value="modelValue"
     :disabled="disabled"
+    :placeholder="control?.placeholder || ''"
     style="width: 100%"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:value="emit('update:modelValue', $event)"
   />
 
   <!-- SELECT -->
-  <el-select
+  <n-select
     v-else-if="controlType === 'SELECT'"
-    :model-value="modelValue"
+    :value="modelValue"
+    :options="selectOptions"
     :placeholder="control?.placeholder || '请选择'"
     :disabled="disabled"
-    style="width: 100%"
     clearable
-    @update:model-value="emit('update:modelValue', $event)"
-  >
-    <el-option
-      v-for="opt in selectOptions"
-      :key="opt.value"
-      :label="opt.label"
-      :value="opt.value"
-    />
-  </el-select>
+    @update:value="emit('update:modelValue', $event)"
+  />
 
   <!-- SWITCH -->
-  <el-switch
+  <n-switch
     v-else-if="controlType === 'SWITCH'"
-    :model-value="modelValue"
+    :value="modelValue"
     :disabled="disabled"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:value="emit('update:modelValue', $event)"
   />
 
   <!-- DATE -->
-  <el-date-picker
+  <n-date-picker
     v-else-if="controlType === 'DATE'"
-    :model-value="modelValue"
-    type="date"
+    :value="dateValue"
     :placeholder="control?.placeholder || '请选择日期'"
     :disabled="disabled"
-    value-format="YYYY-MM-DD"
+    type="date"
     style="width: 100%"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:value="handleDateChange"
   />
 
   <!-- UPLOAD -->
   <div v-else-if="controlType === 'UPLOAD'" class="upload-wrapper">
-    <el-upload
-      :action="uploadUrl"
-      :limit="uploadConfig?.maxCount || 3"
+    <n-upload
+      :multiple="true"
+      :max="uploadConfig?.maxCount || 3"
       :accept="uploadConfig?.accept || '*'"
-      :file-list="fileList"
       :disabled="disabled"
-      list-type="text"
-      @success="handleUploadSuccess"
-      @remove="handleRemoveFile"
-      @exceed="handleExceed"
+      :default-file-list="fileList"
+      @change="handleFileChange"
     >
-      <el-button type="primary" :disabled="disabled">
-        <el-icon><Upload /></el-icon>
-        点击上传
-      </el-button>
-      <template #tip>
-        <div class="el-upload__tip">
-          支持格式: {{ uploadConfig?.accept || '不限' }}，
-          单文件最大: {{ uploadConfig?.maxSizeMB || 10 }}MB，
-          最多{{ uploadConfig?.maxCount || 3 }}个文件
-        </div>
-      </template>
-    </el-upload>
+      <n-button>点击上传</n-button>
+    </n-upload>
+    <div class="upload-tip">
+      支持格式: {{ uploadConfig?.accept || '不限' }}，
+      单文件最大: {{ uploadConfig?.maxSizeMB || 10 }}MB，
+      最多{{ uploadConfig?.maxCount || 3 }}个文件
+    </div>
   </div>
 
   <!-- 未知类型 fallback -->
-  <el-input
+  <n-input
     v-else
-    :model-value="modelValue"
-    :placeholder="control?.placeholder || '请输入'"
+    :value="modelValue"
+    :placeholder="control?.placeholder || ''"
     :disabled="disabled"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:value="emit('update:modelValue', $event)"
   />
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import {
+  NInput,
+  NInputNumber,
+  NSelect,
+  NSwitch,
+  NDatePicker,
+  NUpload,
+  NButton,
+  useMessage
+} from 'naive-ui'
 
 const props = defineProps({
   cell: { type: Object, required: true },
@@ -115,6 +109,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+const message = useMessage()
 
 const controlType = computed(() => props.cell?.controlType || 'INPUT')
 
@@ -122,9 +117,9 @@ const controlType = computed(() => props.cell?.controlType || 'INPUT')
 const selectOptions = computed(() => {
   const opts = props.control?.selectOptions
   if (!opts) return []
-  if (Array.isArray(opts)) return opts
+  if (Array.isArray(opts)) return opts.map(o => ({ label: o.label, value: o.value }))
   try {
-    return JSON.parse(opts)
+    return JSON.parse(opts).map(o => ({ label: o.label, value: o.value }))
   } catch {
     return []
   }
@@ -142,40 +137,63 @@ const uploadConfig = computed(() => {
   }
 })
 
-// 文件上传 URL（可根据实际配置）
-const uploadUrl = '/api/upload'
+// 日期值转换
+const dateValue = computed(() => {
+  if (!props.modelValue) return null
+  if (typeof props.modelValue === 'number') return props.modelValue
+  return new Date(props.modelValue).getTime()
+})
+
+function handleDateChange(timestamp) {
+  if (!timestamp) {
+    emit('update:modelValue', null)
+    return
+  }
+  const date = new Date(timestamp)
+  emit('update:modelValue', date.toISOString().split('T')[0])
+}
 
 // 文件列表管理
 const fileList = ref([])
+
 watch(() => props.modelValue, val => {
   if (Array.isArray(val)) {
-    fileList.value = val.map(f => ({ name: f.fileName, url: f.fileUrl }))
+    fileList.value = val.map((f, i) => ({
+      id: i,
+      name: f.fileName,
+      url: f.fileUrl,
+      status: 'finished'
+    }))
   }
 }, { immediate: true })
 
-function handleUploadSuccess(response, file, files) {
-  const fileData = files.map(f => ({
-    fileName: f.name,
-    fileUrl: f.response?.data?.url || f.url,
-    fileSize: f.size
-  }))
-  emit('update:modelValue', fileData)
-}
+function handleFileChange({ fileList: files }) {
+  const maxCount = uploadConfig.value?.maxCount || 3
+  if (files.length > maxCount) {
+    message.warning(`最多上传 ${maxCount} 个文件`)
+    return
+  }
 
-function handleRemoveFile(file, files) {
-  const fileData = files.map(f => ({
-    fileName: f.name,
-    fileUrl: f.url,
-    fileSize: f.size
-  }))
+  const fileData = files
+    .filter(f => f.status === 'finished')
+    .map(f => ({
+      fileName: f.name,
+      fileUrl: f.url || f.file?.url || '',
+      fileSize: f.file?.size || 0
+    }))
+  
   emit('update:modelValue', fileData)
-}
-
-function handleExceed(files, fileList) {
-  ElMessage.warning(`最多上传 ${uploadConfig.value?.maxCount || 3} 个文件`)
 }
 </script>
 
 <style scoped>
-.upload-wrapper { width: 100%; }
+.upload-wrapper {
+  width: 100%;
+}
+
+.upload-tip {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+}
 </style>

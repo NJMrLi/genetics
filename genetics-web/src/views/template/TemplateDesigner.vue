@@ -1,40 +1,68 @@
 <template>
   <div class="designer-page">
     <!-- 顶部基本信息配置 -->
-    <el-card class="info-card">
-      <el-form :model="store.templateInfo" :rules="infoRules" ref="infoFormRef" inline label-width="90px">
-        <el-form-item label="模板名称" prop="templateName">
-          <el-input v-model="store.templateInfo.templateName" placeholder="模板名称" style="width:200px" />
-        </el-form-item>
-        <el-form-item label="版本" prop="version">
-          <el-input v-model="store.templateInfo.version" placeholder="1.0.0" style="width:100px" />
-        </el-form-item>
-        <el-form-item label="国家" prop="countryCode">
-          <el-select v-model="store.templateInfo.countryCode" placeholder="国家" style="width:140px" clearable>
-            <el-option v-for="c in countries" :key="c.code" :value="c.code" :label="`${c.code} ${c.nameCn}`" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="一级服务" prop="serviceCodeL1">
-          <el-select v-model="store.templateInfo.serviceCodeL1" placeholder="一级" style="width:130px" clearable @change="onL1Change">
-            <el-option v-for="s in l1List" :key="s.id" :value="s.code" :label="s.name" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="二级服务" prop="serviceCodeL2">
-          <el-select v-model="store.templateInfo.serviceCodeL2" placeholder="二级" style="width:150px" clearable @change="onL2Change">
-            <el-option v-for="s in l2List" :key="s.id" :value="s.code" :label="s.name" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="三级服务" prop="serviceCodeL3">
-          <el-select v-model="store.templateInfo.serviceCodeL3" placeholder="三级" style="width:170px" clearable>
-            <el-option v-for="s in l3List" :key="s.id" :value="s.code" :label="s.name" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="saving" @click="handleSave">保存草稿</el-button>
-          <el-button @click="goBack">返回</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <n-card size="small" class="info-card">
+      <div class="info-form">
+        <div class="form-row">
+          <div class="form-item">
+            <label class="form-label">模板名称 <span class="required">*</span></label>
+            <n-input v-model:value="store.templateInfo.templateName" placeholder="模板名称" style="width: 180px" />
+          </div>
+          <div class="form-item">
+            <label class="form-label">版本</label>
+            <n-input v-model:value="store.templateInfo.version" placeholder="1.0.0" style="width: 80px" />
+          </div>
+          <div class="form-item">
+            <label class="form-label">国家</label>
+            <n-select
+              v-model:value="store.templateInfo.countryCode"
+              :options="countryOptions"
+              placeholder="国家"
+              style="width: 140px"
+              clearable
+            />
+          </div>
+          <div class="form-item">
+            <label class="form-label">一级服务</label>
+            <n-select
+              v-model:value="store.templateInfo.serviceCodeL1"
+              :options="l1Options"
+              placeholder="一级"
+              style="width: 120px"
+              clearable
+              @update:value="onL1Change"
+            />
+          </div>
+          <div class="form-item">
+            <label class="form-label">二级服务</label>
+            <n-select
+              v-model:value="store.templateInfo.serviceCodeL2"
+              :options="l2Options"
+              placeholder="二级"
+              style="width: 120px"
+              clearable
+              :disabled="!store.templateInfo.serviceCodeL1"
+              @update:value="onL2Change"
+            />
+          </div>
+          <div class="form-item">
+            <label class="form-label">三级服务</label>
+            <n-select
+              v-model:value="store.templateInfo.serviceCodeL3"
+              :options="l3Options"
+              placeholder="三级"
+              style="width: 140px"
+              clearable
+              :disabled="!store.templateInfo.serviceCodeL2"
+            />
+          </div>
+        </div>
+        <div class="form-actions">
+          <n-button type="primary" :loading="saving" @click="handleSave">保存草稿</n-button>
+          <n-button @click="goBack">返回</n-button>
+        </div>
+      </div>
+    </n-card>
 
     <!-- 设计器主体 -->
     <div class="designer-body">
@@ -51,16 +79,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import {
+  NCard,
+  NInput,
+  NSelect,
+  NButton,
+  useMessage
+} from 'naive-ui'
 import { useFormDesignerStore } from '@/stores/formDesigner'
 import ControlPanel from '@/components/FormDesigner/ControlPanel.vue'
 import CanvasPanel from '@/components/FormDesigner/Canvas.vue'
 import { getTemplate, createTemplate, updateTemplate } from '@/api/formTemplate'
 import { getCountries } from '@/api/basic'
 
-// 服务类目数据（内嵌，实际可改为调用后端接口）
+// 服务类目数据
 const SERVICE_CATEGORIES = [
   { id: 1, parentId: 0, name: 'VAT服务', code: '01' },
   { id: 2, parentId: 0, name: 'EPR服务', code: '02' },
@@ -87,46 +121,77 @@ const SERVICE_CATEGORIES = [
 
 const route = useRoute()
 const router = useRouter()
+const message = useMessage()
 const store = useFormDesignerStore()
 const templateId = route.params.id
 
 const countries = ref([])
-const l1List = ref(SERVICE_CATEGORIES.filter(s => s.parentId === 0))
+const saving = ref(false)
 const l2List = ref([])
 const l3List = ref([])
-const saving = ref(false)
-const infoFormRef = ref(null)
 
-const infoRules = {
-  templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
-  countryCode: [{ required: true, message: '请选择国家', trigger: 'change' }],
-  serviceCodeL1: [{ required: true, message: '请选择一级服务', trigger: 'change' }],
-  serviceCodeL2: [{ required: true, message: '请选择二级服务', trigger: 'change' }],
-  serviceCodeL3: [{ required: true, message: '请选择三级服务', trigger: 'change' }]
-}
+// 计算选项
+const countryOptions = computed(() =>
+  countries.value.map(c => ({
+    label: `${c.code} ${c.nameCn}`,
+    value: c.code
+  }))
+)
+
+const l1Options = computed(() =>
+  SERVICE_CATEGORIES
+    .filter(s => s.parentId === 0)
+    .map(s => ({ label: s.name, value: s.code }))
+)
+
+const l2Options = computed(() =>
+  l2List.value.map(s => ({ label: s.name, value: s.code }))
+)
+
+const l3Options = computed(() =>
+  l3List.value.map(s => ({ label: s.name, value: s.code }))
+)
 
 function onL1Change(code) {
   store.templateInfo.serviceCodeL2 = ''
   store.templateInfo.serviceCodeL3 = ''
   l2List.value = []
   l3List.value = []
-  const parent = SERVICE_CATEGORIES.find(s => s.code === code && s.parentId === 0)
-  if (parent) {
-    l2List.value = SERVICE_CATEGORIES.filter(s => s.parentId === parent.id)
+  
+  if (code) {
+    const parent = SERVICE_CATEGORIES.find(s => s.code === code && s.parentId === 0)
+    if (parent) {
+      l2List.value = SERVICE_CATEGORIES.filter(s => s.parentId === parent.id)
+    }
   }
 }
 
 function onL2Change(code) {
   store.templateInfo.serviceCodeL3 = ''
   l3List.value = []
-  const parent = SERVICE_CATEGORIES.find(s => s.code === code)
-  if (parent) {
-    l3List.value = SERVICE_CATEGORIES.filter(s => s.parentId === parent.id)
+  
+  if (code) {
+    const parent = SERVICE_CATEGORIES.find(s => s.code === code)
+    if (parent) {
+      l3List.value = SERVICE_CATEGORIES.filter(s => s.parentId === parent.id)
+    }
   }
 }
 
 async function handleSave() {
-  await infoFormRef.value?.validate()
+  if (!store.templateInfo.templateName) {
+    message.warning('请输入模板名称')
+    return
+  }
+  if (!store.templateInfo.countryCode) {
+    message.warning('请选择国家')
+    return
+  }
+  if (!store.templateInfo.serviceCodeL1 || !store.templateInfo.serviceCodeL2 || !store.templateInfo.serviceCodeL3) {
+    message.warning('请选择完整的服务类目')
+    return
+  }
+
   saving.value = true
   try {
     const payload = {
@@ -139,7 +204,7 @@ async function handleSave() {
       const res = await createTemplate(payload)
       router.replace(`/template/designer/${res.data.id}`)
     }
-    ElMessage.success('保存成功')
+    message.success('保存成功')
   } finally {
     saving.value = false
   }
@@ -157,8 +222,12 @@ onMounted(async () => {
     const res = await getTemplate(templateId)
     store.loadTemplate(res.data)
     // 恢复联动选项
-    if (store.templateInfo.serviceCodeL1) onL1Change(store.templateInfo.serviceCodeL1)
-    if (store.templateInfo.serviceCodeL2) onL2Change(store.templateInfo.serviceCodeL2)
+    if (store.templateInfo.serviceCodeL1) {
+      onL1Change(store.templateInfo.serviceCodeL1)
+    }
+    if (store.templateInfo.serviceCodeL2) {
+      onL2Change(store.templateInfo.serviceCodeL2)
+    }
   }
 })
 
@@ -168,9 +237,71 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.designer-page { display: flex; flex-direction: column; height: calc(100vh - 100px); gap: 12px; }
-.info-card :deep(.el-card__body) { padding: 12px 16px; }
-.designer-body { flex: 1; display: flex; min-height: 0; border-radius: 8px; overflow: hidden; border: 1px solid #e4e7ed; background: #fff; }
-.left-panel { width: 260px; flex-shrink: 0; }
-.right-panel { flex: 1; overflow: hidden; }
+.designer-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 100px);
+  gap: 12px;
+}
+
+.info-card :deep(.n-card__content) {
+  padding: 12px 16px;
+}
+
+.info-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: 1;
+}
+
+.form-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-label {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.required {
+  color: #d03050;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.designer-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e6;
+  background: #fff;
+}
+
+.left-panel {
+  width: 280px;
+  flex-shrink: 0;
+  border-right: 1px solid #e0e0e6;
+}
+
+.right-panel {
+  flex: 1;
+  overflow: hidden;
+}
 </style>

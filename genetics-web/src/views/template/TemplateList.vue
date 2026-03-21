@@ -1,75 +1,132 @@
 <template>
   <div class="page">
     <div class="page-toolbar">
-      <div class="toolbar-left">
-        <el-select v-model="query.countryCode" placeholder="国家" clearable size="small" style="width:120px" @change="fetchList">
-          <el-option v-for="c in countries" :key="c.code" :value="c.code" :label="`${c.code} ${c.nameCn}`" />
-        </el-select>
-        <el-input v-model="query.serviceCodeL3" placeholder="三级服务code" clearable size="small" style="width:160px" @change="fetchList" />
-        <el-button size="small" @click="fetchList">查询</el-button>
-      </div>
-      <el-button type="primary" size="small" @click="goDesigner()">
-        <el-icon><Plus /></el-icon>新建模板
-      </el-button>
+      <n-space>
+        <n-select
+          v-model:value="query.countryCode"
+          :options="countryOptions"
+          placeholder="国家"
+          clearable
+          style="width: 160px"
+          @update:value="fetchList"
+        />
+        <n-input
+          v-model:value="query.serviceCodeL3"
+          placeholder="三级服务code"
+          clearable
+          style="width: 180px"
+          @keyup.enter="fetchList"
+        />
+        <n-button type="primary" @click="fetchList">
+          <template #icon><n-icon><SearchOutline /></n-icon></template>
+          查询
+        </n-button>
+      </n-space>
+      <n-button type="primary" @click="goDesigner()">
+        <template #icon><n-icon><AddOutline /></n-icon></template>
+        新建模板
+      </n-button>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
-      <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="templateName" label="模板名称" />
-      <el-table-column prop="version" label="版本" width="80" />
-      <el-table-column prop="countryCode" label="国家" width="80" />
-      <el-table-column prop="serviceCodeL1" label="一级" width="70" />
-      <el-table-column prop="serviceCodeL2" label="二级" width="80" />
-      <el-table-column prop="serviceCodeL3" label="三级" width="90" />
-      <el-table-column prop="status" label="状态" width="80">
-        <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-            {{ row.status === 1 ? '已发布' : '草稿' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="goDesigner(row.id)">编辑</el-button>
-          <el-button
-            v-if="row.status === 0"
-            size="small"
-            type="success"
-            @click="handlePublish(row.id)"
-          >发布</el-button>
-          <el-popconfirm title="确认删除？" @confirm="handleDelete(row.id)">
-            <template #reference>
-              <el-button size="small" type="danger">删除</el-button>
-            </template>
-          </el-popconfirm>
-        </template>
-      </el-table-column>
-    </el-table>
+    <n-data-table
+      :columns="columns"
+      :data="list"
+      :loading="loading"
+      :bordered="false"
+    />
 
-    <el-pagination
-      v-model:current-page="query.page"
+    <n-pagination
+      v-model:page="query.page"
       v-model:page-size="query.size"
-      :total="total"
-      layout="total, prev, pager, next"
-      class="pagination"
-      @change="fetchList"
+      :item-count="total"
+      :page-sizes="[10, 20, 50]"
+      show-size-picker
+      style="margin-top: 16px; justify-content: flex-end"
+      @update:page="fetchList"
+      @update:page-size="fetchList"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { h, ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import {
+  NButton,
+  NSpace,
+  NTag,
+  NSelect,
+  NInput,
+  NDataTable,
+  NPagination,
+  NIcon,
+  useMessage,
+  useDialog
+} from 'naive-ui'
+import { SearchOutline, AddOutline } from '@vicons/ionicons5'
 import { listTemplates, publishTemplate, deleteTemplate } from '@/api/formTemplate'
 import { getCountries } from '@/api/basic'
 
 const router = useRouter()
+const message = useMessage()
+const dialog = useDialog()
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
 const countries = ref([])
 const query = reactive({ page: 1, size: 20, countryCode: '', serviceCodeL3: '' })
+
+const countryOptions = computed(() => 
+  countries.value.map(c => ({
+    label: `${c.code} ${c.nameCn}`,
+    value: c.code
+  }))
+)
+
+const columns = [
+  { title: 'ID', key: 'id', width: 60 },
+  { title: '模板名称', key: 'templateName' },
+  { title: '版本', key: 'version', width: 80 },
+  { title: '国家', key: 'countryCode', width: 80 },
+  { title: '一级', key: 'serviceCodeL1', width: 80 },
+  { title: '二级', key: 'serviceCodeL2', width: 90 },
+  { title: '三级', key: 'serviceCodeL3', width: 100 },
+  {
+    title: '状态',
+    key: 'status',
+    width: 100,
+    render: (row) => h(NTag, {
+      type: row.status === 1 ? 'success' : 'default',
+      size: 'small'
+    }, { default: () => row.status === 1 ? '已发布' : '草稿' })
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 220,
+    render: (row) => h(NSpace, null, {
+      default: () => [
+        h(NButton, {
+          size: 'small',
+          quaternary: true,
+          onClick: () => goDesigner(row.id)
+        }, { default: () => '编辑' }),
+        row.status === 0 ? h(NButton, {
+          size: 'small',
+          quaternary: true,
+          type: 'success',
+          onClick: () => handlePublish(row.id)
+        }, { default: () => '发布' }) : null,
+        h(NButton, {
+          size: 'small',
+          quaternary: true,
+          type: 'error',
+          onClick: () => confirmDelete(row)
+        }, { default: () => '删除' })
+      ]
+    })
+  }
+]
 
 async function fetchList() {
   loading.value = true
@@ -93,14 +150,22 @@ function goDesigner(id) {
 
 async function handlePublish(id) {
   await publishTemplate(id)
-  ElMessage.success('发布成功')
+  message.success('发布成功')
   fetchList()
 }
 
-async function handleDelete(id) {
-  await deleteTemplate(id)
-  ElMessage.success('删除成功')
-  fetchList()
+function confirmDelete(row) {
+  dialog.warning({
+    title: '删除确认',
+    content: '确认删除该模板？',
+    positiveText: '确认',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      await deleteTemplate(row.id)
+      message.success('删除成功')
+      fetchList()
+    }
+  })
 }
 
 onMounted(() => {
@@ -112,6 +177,4 @@ onMounted(() => {
 <style scoped>
 .page { display: flex; flex-direction: column; gap: 16px; }
 .page-toolbar { display: flex; justify-content: space-between; align-items: center; }
-.toolbar-left { display: flex; gap: 8px; align-items: center; }
-.pagination { justify-content: flex-end; }
 </style>

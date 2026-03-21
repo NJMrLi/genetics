@@ -1,95 +1,91 @@
 <template>
   <div class="page">
     <div class="page-toolbar">
-      <div class="toolbar-left">
-        <el-select v-model="query.orderStatusId" placeholder="业务状态" clearable size="small" style="width:140px" @change="fetchList">
-          <el-option
-            v-for="s in orderStatusOptions"
-            :key="s.code"
-            :value="s.code"
-            :label="s.name"
-          />
-        </el-select>
-        <el-button size="small" @click="fetchList">查询</el-button>
-      </div>
-      <el-button type="primary" size="small" @click="createDialogVisible = true">
-        <el-icon><Plus /></el-icon>新建服务单
-      </el-button>
+      <n-space>
+        <n-select
+          v-model:value="query.orderStatusId"
+          :options="orderStatusOptions"
+          placeholder="业务状态"
+          clearable
+          style="width: 160px"
+          @update:value="fetchList"
+        />
+        <n-button type="primary" @click="fetchList">
+          <template #icon><n-icon><SearchOutline /></n-icon></template>
+          查询
+        </n-button>
+      </n-space>
+      <n-button type="primary" @click="createDialogVisible = true">
+        <template #icon><n-icon><AddOutline /></n-icon></template>
+        新建服务单
+      </n-button>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
-      <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="templateName" label="服务单名称" />
-      <el-table-column prop="version" label="版本" width="80" />
-      <el-table-column prop="countryCode" label="国家" width="80" />
-      <el-table-column prop="serviceCodeL3" label="服务类型" width="110" />
-      <el-table-column label="业务状态" width="120">
-        <template #default="{ row }">
-          <el-tag :type="orderStatusTag(row.orderStatusId)" size="small">
-            {{ orderStatusName(row.orderStatusId) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="serviceStartTime" label="服务开始" width="165" />
-      <el-table-column prop="serviceEndTime" label="服务结束" width="165" />
-      <el-table-column prop="createTime" label="创建时间" width="165" />
-      <el-table-column label="操作" width="160" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="goForm(row.id)">
-            {{ row.status === 0 ? '填写' : '查看' }}
-          </el-button>
-          <el-button
-            v-if="row.status === 0"
-            size="small"
-            type="success"
-            @click="handleSubmit(row.id)"
-          >提交</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <n-data-table
+      :columns="columns"
+      :data="list"
+      :loading="loading"
+      :bordered="false"
+    />
 
-    <el-pagination
-      v-model:current-page="query.page"
+    <n-pagination
+      v-model:page="query.page"
       v-model:page-size="query.size"
-      :total="total"
-      layout="total, prev, pager, next"
-      class="pagination"
-      @change="fetchList"
+      :item-count="total"
+      :page-sizes="[10, 20, 50]"
+      show-size-picker
+      style="margin-top: 16px; justify-content: flex-end"
+      @update:page="fetchList"
+      @update:page-size="fetchList"
     />
 
     <!-- 新建服务单弹窗：选择模板 -->
-    <el-dialog v-model="createDialogVisible" title="选择服务单模板" width="600px">
-      <el-table
+    <n-modal
+      v-model:show="createDialogVisible"
+      title="选择服务单模板"
+      preset="dialog"
+      style="width: 700px"
+    >
+      <n-data-table
+        :columns="templateColumns"
         :data="templates"
-        border
-        highlight-current-row
-        @current-change="selectedTemplate = $event"
-        v-loading="templateLoading"
-      >
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="templateName" label="模板名称" />
-        <el-table-column prop="countryCode" label="国家" width="70" />
-        <el-table-column prop="serviceCodeL3" label="服务类型" width="100" />
-        <el-table-column prop="version" label="版本" width="70" />
-      </el-table>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!selectedTemplate" :loading="creating" @click="handleCreate">
-          创建服务单
-        </el-button>
+        :loading="templateLoading"
+        :bordered="false"
+        :row-key="row => row.id"
+        @update:checked-row-keys="handleTemplateSelect"
+      />
+      <template #action>
+        <n-space>
+          <n-button @click="createDialogVisible = false">取消</n-button>
+          <n-button type="primary" :disabled="!selectedTemplateId" :loading="creating" @click="handleCreate">
+            创建服务单
+          </n-button>
+        </n-space>
       </template>
-    </el-dialog>
+    </n-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { h, ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import {
+  NButton,
+  NSpace,
+  NTag,
+  NSelect,
+  NDataTable,
+  NPagination,
+  NModal,
+  NIcon,
+  useMessage
+} from 'naive-ui'
+import { SearchOutline, AddOutline } from '@vicons/ionicons5'
 import { listInstances, createInstance, submitInstance, getOrderStatusOptions } from '@/api/formInstance'
 import { listTemplates } from '@/api/formTemplate'
 
 const router = useRouter()
+const message = useMessage()
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
@@ -98,24 +94,83 @@ const query = reactive({ page: 1, size: 20, orderStatusId: null })
 const createDialogVisible = ref(false)
 const templates = ref([])
 const templateLoading = ref(false)
-const selectedTemplate = ref(null)
+const selectedTemplateId = ref(null)
 const creating = ref(false)
 
-// 业务状态枚举（从后端加载）
+// 业务状态枚举
 const orderStatusOptions = ref([])
-const orderStatusMap = ref({})   // code → { name, tagType }
+const orderStatusMap = ref({})
+
+const columns = [
+  { title: 'ID', key: 'id', width: 70 },
+  { title: '服务单名称', key: 'templateName' },
+  { title: '版本', key: 'version', width: 80 },
+  { title: '国家', key: 'countryCode', width: 80 },
+  { title: '服务类型', key: 'serviceCodeL3', width: 120 },
+  {
+    title: '业务状态',
+    key: 'orderStatusId',
+    width: 120,
+    render: (row) => h(NTag, {
+      type: getTagType(row.orderStatusId),
+      size: 'small'
+    }, { default: () => orderStatusName(row.orderStatusId) })
+  },
+  { title: '服务开始', key: 'serviceStartTime', width: 165 },
+  { title: '服务结束', key: 'serviceEndTime', width: 165 },
+  { title: '创建时间', key: 'createTime', width: 165 },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 180,
+    render: (row) => h(NSpace, null, {
+      default: () => [
+        h(NButton, {
+          size: 'small',
+          quaternary: true,
+          onClick: () => goForm(row.id)
+        }, { default: () => row.status === 0 ? '填写' : '查看' }),
+        row.status === 0 ? h(NButton, {
+          size: 'small',
+          quaternary: true,
+          type: 'success',
+          onClick: () => handleSubmit(row.id)
+        }, { default: () => '提交' }) : null
+      ]
+    })
+  }
+]
+
+const templateColumns = [
+  { title: 'ID', key: 'id', width: 60 },
+  { title: '模板名称', key: 'templateName' },
+  { title: '国家', key: 'countryCode', width: 80 },
+  { title: '服务类型', key: 'serviceCodeL3', width: 120 },
+  { title: '版本', key: 'version', width: 80 }
+]
 
 async function loadOrderStatusOptions() {
   const res = await getOrderStatusOptions()
-  orderStatusOptions.value = res.data
+  orderStatusOptions.value = (res.data || []).map(s => ({
+    label: s.name,
+    value: s.code
+  }))
   orderStatusMap.value = Object.fromEntries(res.data.map(s => [s.code, s]))
 }
 
 function orderStatusName(code) {
   return orderStatusMap.value[code]?.name || code
 }
-function orderStatusTag(code) {
-  return orderStatusMap.value[code]?.tagType || 'info'
+
+function getTagType(code) {
+  const tagType = orderStatusMap.value[code]?.tagType || 'info'
+  const mapping = {
+    'success': 'success',
+    'warning': 'warning',
+    'danger': 'error',
+    'info': 'default'
+  }
+  return mapping[tagType] || 'default'
 }
 
 async function fetchList() {
@@ -141,16 +196,20 @@ async function loadTemplates() {
   }
 }
 
+function handleTemplateSelect(keys) {
+  selectedTemplateId.value = keys[0] || null
+}
+
 function goForm(id) {
   router.push(`/instance/form/${id}`)
 }
 
 async function handleCreate() {
-  if (!selectedTemplate.value) return
+  if (!selectedTemplateId.value) return
   creating.value = true
   try {
-    const res = await createInstance({ templateId: selectedTemplate.value.id })
-    ElMessage.success('服务单创建成功')
+    const res = await createInstance({ templateId: selectedTemplateId.value })
+    message.success('服务单创建成功')
     createDialogVisible.value = false
     router.push(`/instance/form/${res.data.instanceId}`)
   } finally {
@@ -159,8 +218,8 @@ async function handleCreate() {
 }
 
 async function handleSubmit(id) {
-  const res = await submitInstance(id)
-  ElMessage.success('提交成功')
+  await submitInstance(id)
+  message.success('提交成功')
   fetchList()
 }
 
@@ -174,6 +233,4 @@ onMounted(() => {
 <style scoped>
 .page { display: flex; flex-direction: column; gap: 16px; }
 .page-toolbar { display: flex; justify-content: space-between; align-items: center; }
-.toolbar-left { display: flex; gap: 8px; align-items: center; }
-.pagination { justify-content: flex-end; }
 </style>
