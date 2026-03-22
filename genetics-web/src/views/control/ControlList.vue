@@ -2,7 +2,14 @@
   <div class="page-container">
     <!-- 工具栏 -->
     <div class="page-header">
-      <div class="title">控件管理</div>
+      <div class="header-left">
+        <n-button v-if="viewMode === 'detail'" circle secondary @click="backToGrid" style="margin-right: 12px">
+          <template #icon><n-icon><ArrowBackOutline /></n-icon></template>
+        </n-button>
+        <div class="title">
+          {{ viewMode === 'grid' ? '控件管理' : `控件详情 - ${currentGroup?.label}` }}
+        </div>
+      </div>
       <n-space>
         <n-button secondary @click="importDialogVisible = true">
           <template #icon><n-icon><CloudUploadOutline /></n-icon></template>
@@ -15,56 +22,84 @@
       </n-space>
     </div>
 
-    <div class="toolbar">
+    <div class="toolbar" v-if="viewMode === 'grid'">
       <n-space>
-        <n-select
-          v-model:value="query.groupName"
-          :options="businessTypeOptions"
-          placeholder="业务分组"
-          clearable
-          style="width: 160px"
-          @update:value="fetchList"
-        />
-        <n-select
-          v-model:value="query.controlType"
-          :options="CONTROL_TYPES"
-          placeholder="控件类型"
-          clearable
-          style="width: 140px"
-          @update:value="fetchList"
-        />
         <n-input
           v-model:value="query.keyword"
-          placeholder="搜索控件名/key"
+          placeholder="搜索业务类名/中文名"
           clearable
-          style="width: 200px"
-          @keyup.enter="fetchList"
-        />
-        <n-button type="primary" ghost @click="fetchList">
-          <template #icon><n-icon><SearchOutline /></n-icon></template>
+          style="width: 260px"
+          @keyup.enter="page = 1"
+        >
+          <template #prefix>
+            <n-icon><SearchOutline /></n-icon>
+          </template>
+        </n-input>
+        <n-button type="primary" ghost @click="page = 1">
           查询
         </n-button>
       </n-space>
     </div>
 
-    <n-card :bordered="false" content-style="padding: 0;">
-      <!-- 按业务分组展示 -->
-      <n-spin :show="loading">
-        <n-collapse v-model:expanded-names="activeGroups" style="padding: 16px">
-          <n-collapse-item
-            v-for="(items, groupName) in groupedList"
-            :key="groupName"
-            :name="groupName"
-          >
-            <template #header>
-              <span class="group-header">{{ groupName }} ({{ items.length }})</span>
-            </template>
-            <n-data-table :columns="columns" :data="items" :bordered="false" size="small" />
-          </n-collapse-item>
-        </n-collapse>
-        <n-empty v-if="!loading && !Object.keys(groupedList).length" description="暂无控件" />
-      </n-spin>
-    </n-card>
+    <n-spin :show="loading">
+      <!-- 1. 卡片网格视图 -->
+      <div v-if="viewMode === 'grid'" class="grid-view">
+        <n-grid :cols="4" :x-gap="16" :y-gap="16" v-if="paginatedGroups.length">
+          <n-gi v-for="group in paginatedGroups" :key="group.name">
+            <n-card
+              hoverable
+              class="group-card"
+              @click="showDetail(group)"
+              :content-style="{ padding: '20px' }"
+            >
+              <div class="card-content">
+                <div class="card-icon">
+                  <n-icon size="32" color="#18a058"><CubeOutline /></n-icon>
+                </div>
+                <div class="card-info">
+                  <div class="card-title">{{ group.label }}</div>
+                  <div class="card-subtitle">{{ group.name }}</div>
+                </div>
+              </div>
+              <template #footer>
+                <div class="card-footer">
+                  <n-space justify="space-between" align="center">
+                    <n-statistic label="总控件" :value="group.count" size="small" />
+                    <n-statistic label="已启用" :value="group.enabledCount" size="small" />
+                    <n-button quaternary circle type="primary">
+                      <template #icon><n-icon><ChevronForwardOutline /></n-icon></template>
+                    </n-button>
+                  </n-space>
+                </div>
+              </template>
+            </n-card>
+          </n-gi>
+        </n-grid>
+        <n-empty v-else description="暂无控件分组" style="padding: 40px" />
+        
+        <div class="pagination-container" v-if="groupStats.length > pageSize">
+          <n-pagination
+            v-model:page="page"
+            :item-count="groupStats.length"
+            :page-size="pageSize"
+            show-quick-jumper
+          />
+        </div>
+      </div>
+
+      <!-- 2. 详情视图 -->
+      <div v-else class="detail-view">
+        <n-card :bordered="false" content-style="padding: 0;">
+          <n-data-table
+            :columns="columns"
+            :data="currentGroupControls"
+            :bordered="false"
+            size="small"
+            style="min-height: 400px"
+          />
+        </n-card>
+      </div>
+    </n-spin>
 
     <!-- 新增/编辑弹窗 -->
     <n-modal
@@ -219,88 +254,40 @@ import {
   NFormItem,
   NGrid,
   NGi,
-  NCollapse,
-  NCollapseItem,
   NDataTable,
   NSpin,
   NEmpty,
   NIcon,
+  NPagination,
+  NCard,
+  NStatistic,
+  NTooltip,
+  NAlert,
   useMessage,
   useDialog
 } from 'naive-ui'
-import { SearchOutline, AddOutline, CreateOutline, TrashOutline, CloudUploadOutline } from '@vicons/ionicons5'
+import { 
+  SearchOutline, 
+  AddOutline, 
+  CreateOutline, 
+  TrashOutline, 
+  CloudUploadOutline,
+  ChevronForwardOutline,
+  ArrowBackOutline,
+  CubeOutline
+} from '@vicons/ionicons5'
 import { listAllControls, createControl, updateControl, deleteControl, getBusinessTypes } from '@/api/formControl'
 
 const message = useMessage()
 const dialog = useDialog()
 
-const CONTROL_TYPES = [
-  { label: '输入框', value: 'INPUT' },
-  { label: '多行文本', value: 'TEXTAREA' },
-  { label: '数字', value: 'NUMBER' },
-  { label: '下拉框', value: 'SELECT' },
-  { label: '开关', value: 'SWITCH' },
-  { label: '日期', value: 'DATE' },
-  { label: '文件上传', value: 'UPLOAD' }
-]
+// 视图模式: 'grid' - 分类卡片网格, 'detail' - 分类下的控件详情
+const viewMode = ref('grid')
+const currentGroup = ref(null) // 当前选中的业务类型
 
-// JSON 导入相关
-const importDialogVisible = ref(false)
-const importJson = ref('')
-const importing = ref(false)
-
-async function handleImport() {
-  if (!importJson.value.trim()) {
-    message.warning('请输入 JSON 内容')
-    return
-  }
-  
-  let data = []
-  try {
-    data = JSON.parse(importJson.value)
-    if (!Array.isArray(data)) {
-      message.error('JSON 必须是一个数组')
-      return
-    }
-  } catch (e) {
-    message.error('JSON 格式错误: ' + e.message)
-    return
-  }
-  
-  importing.value = true
-  let successCount = 0
-  let failCount = 0
-  
-  try {
-    for (const item of data) {
-      if (!item.controlKey || !item.controlName) {
-        failCount++
-        continue
-      }
-      
-      // 检查是否存在
-      const existing = list.value.find(c => c.controlKey === item.controlKey)
-      try {
-        if (existing) {
-          await updateControl(existing.id, { ...existing, ...item })
-        } else {
-          await createControl(item)
-        }
-        successCount++
-      } catch (err) {
-        failCount++
-      }
-    }
-    
-    message.success(`导入完成：成功 ${successCount} 个，失败 ${failCount} 个`)
-    importDialogVisible.value = false
-    importJson.value = ''
-    fetchList()
-    fetchBusinessTypes()
-  } finally {
-    importing.value = false
-  }
-}
+// 分页相关
+const page = ref(1)
+const pageSize = ref(12) // 每页 12 个卡片
 
 // 业务分组映射
 const GROUP_MAPPING = {
@@ -313,15 +300,85 @@ const GROUP_MAPPING = {
   'CompanyContact': '联系人信息',
   'CompanyAddress': '地址信息',
   'CompanyShareholder': '股东信息',
-  'CompanyBusiness': '业务信息'
+  'CompanyBusiness': '业务信息',
+  'CompanyUser': '员工信息',
+  'CompanyEprCategoryBrand': 'EPR类目',
+  'CompanyOverseaManage': '境外经理人',
+  'CompanyPersonnel': '人员信息',
+  'CompanySales': '销售额信息'
 }
 
 const loading = ref(false)
 const submitting = ref(false)
 const list = ref([])
-const query = reactive({ groupName: '', controlType: '', keyword: '' })
-const activeGroups = ref([])
+const query = reactive({ controlType: '', keyword: '' })
 const businessTypeOptions = ref([])
+
+// 获取所有业务分组及其控件数量
+const groupStats = computed(() => {
+  const stats = {}
+  list.value.forEach(item => {
+    const prefix = item.controlKey?.split('.')[0] || '其他'
+    if (!stats[prefix]) {
+      stats[prefix] = {
+        name: prefix,
+        label: GROUP_MAPPING[prefix] || prefix,
+        count: 0,
+        enabledCount: 0
+      }
+    }
+    stats[prefix].count++
+    if (item.enabled) stats[prefix].enabledCount++
+  })
+  
+  let result = Object.values(stats)
+  if (query.keyword) {
+    const kw = query.keyword.toLowerCase()
+    result = result.filter(g => 
+      g.name.toLowerCase().includes(kw) || 
+      g.label.toLowerCase().includes(kw)
+    )
+  }
+  
+  return result.sort((a, b) => b.count - a.count)
+})
+
+// 分页后的分组
+const paginatedGroups = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return groupStats.value.slice(start, end)
+})
+
+// 当前选中分组下的控件列表
+const currentGroupControls = computed(() => {
+  if (!currentGroup.value) return []
+  return list.value
+    .filter(item => (item.controlKey?.split('.')[0] || '其他') === currentGroup.value.name)
+    .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+})
+
+// 切换到详情视图
+function showDetail(group) {
+  currentGroup.value = group
+  viewMode.value = 'detail'
+}
+
+// 返回网格视图
+function backToGrid() {
+  viewMode.value = 'grid'
+  currentGroup.value = null
+}
+
+const CONTROL_TYPES = [
+  { label: '输入框', value: 'INPUT' },
+  { label: '多行文本', value: 'TEXTAREA' },
+  { label: '数字', value: 'NUMBER' },
+  { label: '下拉框', value: 'SELECT' },
+  { label: '开关', value: 'SWITCH' },
+  { label: '日期', value: 'DATE' },
+  { label: '文件上传', value: 'UPLOAD' }
+]
 
 // 表格列定义
 const columns = [
@@ -383,53 +440,62 @@ const columns = [
   }
 ]
 
-// 从 controlKey 提取业务类型前缀
-function getGroupPrefix(controlKey) {
-  if (!controlKey) return '其他'
-  return controlKey.split('.')[0]
-}
+// JSON 导入相关
+const importDialogVisible = ref(false)
+const importJson = ref('')
+const importing = ref(false)
 
-// 分组显示标签
-function getGroupLabel(prefix) {
-  return GROUP_MAPPING[prefix] || prefix
-}
-
-// 计算分组后的列表
-const groupedList = computed(() => {
-  let filtered = list.value
-  
-  if (query.groupName) {
-    filtered = filtered.filter(item => getGroupPrefix(item.controlKey) === query.groupName)
+async function handleImport() {
+  if (!importJson.value.trim()) {
+    message.warning('请输入 JSON 内容')
+    return
   }
   
-  if (query.controlType) {
-    filtered = filtered.filter(item => item.controlType === query.controlType)
-  }
-  
-  if (query.keyword) {
-    const kw = query.keyword.toLowerCase()
-    filtered = filtered.filter(item => 
-      (item.controlName && item.controlName.toLowerCase().includes(kw)) ||
-      (item.controlKey && item.controlKey.toLowerCase().includes(kw))
-    )
-  }
-  
-  const groups = {}
-  filtered.forEach(item => {
-    const prefix = getGroupPrefix(item.controlKey)
-    const label = getGroupLabel(prefix)
-    if (!groups[label]) {
-      groups[label] = []
+  let data = []
+  try {
+    data = JSON.parse(importJson.value)
+    if (!Array.isArray(data)) {
+      message.error('JSON 必须是一个数组')
+      return
     }
-    groups[label].push(item)
-  })
+  } catch (e) {
+    message.error('JSON 格式错误: ' + e.message)
+    return
+  }
   
-  Object.keys(groups).forEach(key => {
-    groups[key].sort((a, b) => (a.sort || 0) - (b.sort || 0))
-  })
+  importing.value = true
+  let successCount = 0
+  let failCount = 0
   
-  return groups
-})
+  try {
+    for (const item of data) {
+      if (!item.controlKey || !item.controlName) {
+        failCount++
+        continue
+      }
+      
+      const existing = list.value.find(c => c.controlKey === item.controlKey)
+      try {
+        if (existing) {
+          await updateControl(existing.id, { ...existing, ...item })
+        } else {
+          await createControl(item)
+        }
+        successCount++
+      } catch (err) {
+        failCount++
+      }
+    }
+    
+    message.success(`导入完成：成功 ${successCount} 个，失败 ${failCount} 个`)
+    importDialogVisible.value = false
+    importJson.value = ''
+    fetchList()
+    fetchBusinessTypes()
+  } finally {
+    importing.value = false
+  }
+}
 
 const dialogVisible = ref(false)
 const formRef = ref(null)
@@ -460,7 +526,6 @@ async function fetchList() {
   try {
     const res = await listAllControls()
     list.value = res.data || []
-    activeGroups.value = Object.keys(groupedList.value)
   } finally {
     loading.value = false
   }
@@ -469,9 +534,6 @@ async function fetchList() {
 function openDialog(row) {
   if (row) {
     Object.assign(form, row)
-    if (!form.businessType && form.controlKey) {
-      form.businessType = form.controlKey.split('.')[0]
-    }
   } else {
     Object.assign(form, {
       id: null, controlName: '', controlKey: '', businessType: '', controlType: 'INPUT',
@@ -547,5 +609,73 @@ onMounted(() => {
 
 <style scoped>
 .page-container { width: 100%; }
-.group-header { font-weight: 600; font-size: 14px; }
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+}
+.title {
+  font-size: 20px;
+  font-weight: 600;
+}
+.toolbar {
+  margin-bottom: 24px;
+}
+
+.group-card {
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.group-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.card-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.card-icon {
+  background: rgba(24, 160, 88, 0.1);
+  padding: 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--n-title-text-color);
+}
+.card-subtitle {
+  font-size: 12px;
+  color: var(--n-text-color-3);
+  margin-top: 4px;
+}
+.card-footer {
+  border-top: 1px solid var(--n-border-color);
+  padding-top: 12px;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.detail-view {
+  animation: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 </style>
