@@ -41,4 +41,13 @@
                  stripComments="true"/>
     </changeSet>
 
+    <!-- 添加核心表索引，优化列表查询性能 -->
+    <changeSet id="005-add-indexes" author="genetics">
+        <sqlFile path="sql/005-add-indexes.sql"
+                 relativeToChangelogFile="true"
+                 encoding="UTF-8"
+                 splitStatements="true"
+                 stripComments="true"/>
+    </changeSet>
+
 </databaseChangeLog>
