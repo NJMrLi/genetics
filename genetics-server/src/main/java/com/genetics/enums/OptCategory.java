@@ -207,18 +207,31 @@ public enum OptCategory {
 
     public static List<OptCategory> getRegistryAndAgentOptCategories(String operationCategoryCode2) {
         OptCategory category = OptCategory.valueOfCode(operationCategoryCode2);
-        return switch (category) {
-            case EPR_PKG -> Arrays.asList(EPR_PKG_REGDEC, EPR_PKG_AGEDEC);
-            case EPR_WEEE -> Arrays.asList(EPR_WEEE_REGDEC, EPR_WEEE_AGEDEC);
-            case EPR_BAT -> Arrays.asList(EPR_BAT_REGDEC, EPR_BAT_AGEDEC);
-            case EPR_FUR -> Arrays.asList(EPR_FUR_REGDEC, EPR_FUR_AGEDEC);
-            case EPR_TYR -> Arrays.asList(EPR_TYR_REGDEC, EPR_TYR_AGEDEC);
-            case EPR_PAP -> Arrays.asList(EPR_PAP_REGDEC, EPR_PAP_AGEDEC);
-            case EPR_TEX -> Arrays.asList(EPR_TEX_REGDEC, EPR_TEX_AGEDEC);
-            case EPR_GAR -> Arrays.asList(EPR_GAR_REGDEC, EPR_GAR_AGEDEC);
-            case EPR_SPO -> Arrays.asList(EPR_SPO_REGDEC, EPR_SPO_AGEDEC);
-            default -> Arrays.asList();
-        };
+        if (category == null) {
+            return Arrays.asList();
+        }
+        switch (category) {
+            case EPR_PKG:
+                return Arrays.asList(EPR_PKG_REGDEC, EPR_PKG_AGEDEC);
+            case EPR_WEEE:
+                return Arrays.asList(EPR_WEEE_REGDEC, EPR_WEEE_AGEDEC);
+            case EPR_BAT:
+                return Arrays.asList(EPR_BAT_REGDEC, EPR_BAT_AGEDEC);
+            case EPR_FUR:
+                return Arrays.asList(EPR_FUR_REGDEC, EPR_FUR_AGEDEC);
+            case EPR_TYR:
+                return Arrays.asList(EPR_TYR_REGDEC, EPR_TYR_AGEDEC);
+            case EPR_PAP:
+                return Arrays.asList(EPR_PAP_REGDEC, EPR_PAP_AGEDEC);
+            case EPR_TEX:
+                return Arrays.asList(EPR_TEX_REGDEC, EPR_TEX_AGEDEC);
+            case EPR_GAR:
+                return Arrays.asList(EPR_GAR_REGDEC, EPR_GAR_AGEDEC);
+            case EPR_SPO:
+                return Arrays.asList(EPR_SPO_REGDEC, EPR_SPO_AGEDEC);
+            default:
+                return Arrays.asList();
+        }
     }
 
     public static List<String> getRegistryAndAgentOptCodes(String operationCategoryCode2) {

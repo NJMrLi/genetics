@@ -1,6 +1,8 @@
 package com.genetics.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.genetics.entity.workflow.TemplateWorkflowConfig;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -9,7 +11,7 @@ import java.time.LocalDateTime;
  * 服务单模板实体
  */
 @Data
-@TableName("form_template")
+@TableName(value = "form_template", autoResultMap = true)
 public class FormTemplate {
 
     @TableId(type = IdType.AUTO)
@@ -38,6 +40,12 @@ public class FormTemplate {
      * {"layout":"grid","columns":2,"rows":[...]}
      */
     private String jsonSchema;
+
+    /**
+     * 工作流配置
+     */
+    @TableField(typeHandler = JacksonTypeHandler.class)
+    private TemplateWorkflowConfig workflowConfig;
 
     /** 状态: 0草稿 1发布 */
     private Integer status;

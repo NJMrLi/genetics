@@ -17,6 +17,7 @@ import com.genetics.enums.ServeState;
 import com.genetics.mapper.FormInstanceMapper;
 import com.genetics.mapper.FormTemplateMapper;
 import com.genetics.service.FormInstanceService;
+import com.genetics.service.TemplateWorkflowService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class FormInstanceServiceImpl implements FormInstanceService {
     private final FormTemplateServiceImpl formTemplateService;
     private final FormDataConverter formDataConverter;
     private final ObjectMapper objectMapper;
+    private final TemplateWorkflowService templateWorkflowService;
 
     @Override
     public FormInstanceDetailVO create(FormInstanceCreateDTO dto) {
@@ -140,6 +142,27 @@ public class FormInstanceServiceImpl implements FormInstanceService {
         }
         FormInstance instance = requireExist(id);
         instance.setOrderStatusId(orderStatusId);
+        formInstanceMapper.updateById(instance);
+    }
+
+    @Override
+    public void executeTransition(Long id, String action, String remark) {
+        FormInstance instance = requireExist(id);
+        
+        // 使用工作流服务验证并执行状态流转
+        Integer newStatus = templateWorkflowService.doInstanceTransition(instance, action);
+        
+        // 更新状态
+        instance.setOrderStatusId(newStatus);
+        
+        // 如果是提交操作，同时更新提交状态和时间
+        if ("submit".equals(action) || "resubmit".equals(action)) {
+            instance.setStatus(InstanceStatus.SUBMITTED.getCode());
+            instance.setSubmitTime(LocalDateTime.now());
+        }
+        
+        // TODO: 可以添加操作日志记录，记录 remark
+        
         formInstanceMapper.updateById(instance);
     }
 

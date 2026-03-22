@@ -1,5 +1,6 @@
 package com.genetics.dto;
 
+import com.genetics.entity.workflow.TemplateWorkflowConfig;
 import lombok.Data;
 
 import java.util.List;
@@ -20,6 +21,8 @@ public class FormTemplateDetailVO {
     private String serviceCodeL3;
     /** 解析后的Schema对象 */
     private Object jsonSchema;
+    /** 工作流配置 */
+    private TemplateWorkflowConfig workflowConfig;
     private Integer status;
     private String remark;
 

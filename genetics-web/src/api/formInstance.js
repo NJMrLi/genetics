@@ -8,3 +8,8 @@ export const updateOrderStatus = (id, orderStatusId) =>
 export const getInstance = (id) => request.get(`/form-instance/${id}`)
 export const listInstances = (params) => request.get('/form-instance/list', { params })
 export const getOrderStatusOptions = () => request.get('/form-instance/order-status/options')
+
+// 工作流相关接口
+export const getAvailableActions = (id) => request.get(`/form-instance/${id}/available-actions`)
+export const executeTransition = (id, action, remark) =>
+  request.post(`/form-instance/${id}/transition`, null, { params: { action, remark } })

@@ -32,4 +32,13 @@
                  stripComments="true"/>
     </changeSet>
 
+    <!-- 为 form_template 添加工作流配置字段 -->
+    <changeSet id="004-add-workflow-config" author="genetics">
+        <sqlFile path="sql/004-add-workflow-config.sql"
+                 relativeToChangelogFile="true"
+                 encoding="UTF-8"
+                 splitStatements="true"
+                 stripComments="true"/>
+    </changeSet>
+
 </databaseChangeLog>

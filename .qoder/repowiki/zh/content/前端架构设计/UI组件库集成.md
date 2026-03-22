@@ -2,8 +2,32 @@
 
 <cite>
 **本文引用的文件**
-- [VAT_EPR_动态表单技术方案.md](file://VAT_EPR_动态表单技术方案.md)
+- [App.vue](file://genetics-web/src/App.vue)
+- [package.json](file://genetics-web/package.json)
+- [DynamicForm.vue](file://genetics-web/src/components/DynamicForm/DynamicForm.vue)
+- [ControlRenderer.vue](file://genetics-web/src/components/DynamicForm/ControlRenderer.vue)
+- [InstanceForm.vue](file://genetics-web/src/views/instance/InstanceForm.vue)
+- [TemplateDesigner.vue](file://genetics-web/src/views/template/TemplateDesigner.vue)
+- [Canvas.vue](file://genetics-web/src/components/FormDesigner/Canvas.vue)
+- [ControlPanel.vue](file://genetics-web/src/components/FormDesigner/ControlPanel.vue)
+- [formDesigner.js](file://genetics-web/src/stores/formDesigner.js)
+- [main.js](file://genetics-web/src/main.js)
+- [router/index.js](file://genetics-web/src/router/index.js)
+- [vite.config.js](file://genetics-web/vite.config.js)
 </cite>
+
+## 更新摘要
+**变更内容**
+- 从Element Plus完全迁移到Naive UI组件库
+- 更新所有布局组件：NLayout系列替代EL Layout组件
+- 更新菜单组件：NMenu替代EL Menu组件
+- 更新表单组件：NForm系列替代EL Form组件
+- 更新数据表格：NDataTable替代EL Table组件
+- 更新按钮：NButton替代EL Button组件
+- 更新消息提示：NMessageProvider替代EL Message组件
+- 更新对话框：NDialogProvider替代EL Dialog组件
+- 更新通知：NNotificationProvider替代EL Notification组件
+- 更新主题定制：通过themeOverrides配置替代CSS变量
 
 ## 目录
 1. [简介](#简介)
@@ -18,10 +42,12 @@
 10. [附录](#附录)
 
 ## 简介
-本文件围绕动态表单系统的前端UI组件库集成进行系统化说明，重点基于项目采用的Element Plus组件库，结合项目中的动态表单渲染、控件类型、表单校验与数据绑定等需求，给出组件库的选择理由、安装配置、按需引入策略、常用表单组件使用方式、主题定制与样式覆盖、响应式设计、组合使用与复杂场景处理、可访问性与国际化、浏览器兼容性、性能优化与打包体积控制等实践指南。文档同时提供面向开发者的最佳实践与排障建议，帮助快速落地高质量的动态表单体验。
+本文件围绕动态表单系统的前端UI组件库集成进行系统化说明，重点基于项目采用的Naive UI组件库，结合项目中的动态表单渲染、控件类型、表单校验与数据绑定等需求，给出组件库的选择理由、安装配置、按需引入策略、常用表单组件使用方式、主题定制与样式覆盖、响应式设计、组合使用与复杂场景处理、可访问性与国际化、浏览器兼容性、性能优化与打包体积控制等实践指南。文档同时提供面向开发者的最佳实践与排障建议，帮助快速落地高质量的动态表单体验。
+
+**更新** 项目已从Element Plus迁移到Naive UI，这是一个重大的UI组件库变更，涉及所有前端组件的重构和重新设计。
 
 ## 项目结构
-项目采用前后端分离架构，前端以Vue 3 + Vite为基础，Element Plus作为UI组件库，配合拖拽排序、状态管理与HTTP客户端等生态工具，支撑动态表单的设计与运行时渲染。前端目录组织如下：
+项目采用前后端分离架构，前端以Vue 3 + Vite为基础，Naive UI作为UI组件库，配合拖拽排序、状态管理与HTTP客户端等生态工具，支撑动态表单的设计与运行时渲染。前端目录组织如下：
 - views：页面级视图，包括控件管理、模板设计、实例填写等
 - components：可复用组件，包含动态表单渲染器与控件分发器
 - api：各模块的HTTP接口封装
@@ -36,16 +62,17 @@ API["api/*<br/>接口封装"]
 Stores["stores/*<br/>状态管理"]
 end
 subgraph "UI组件库"
-EP["Element Plus<br/>组件库"]
+NU["Naive UI<br/>组件库"]
 end
 Views --> Comps
-Comps --> EP
+Comps --> NU
 API --> Views
 Stores --> Views
 ```
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 815-852:815-852](file://VAT_EPR_动态表单技术方案.md#L815-L852)
+- [App.vue: 1-169:1-169](file://genetics-web/src/App.vue#L1-L169)
+- [main.js: 1-16:1-16](file://genetics-web/src/main.js#L1-L16)
 
 ## 核心组件
 - 动态表单主组件：负责根据json_schema与controlDetails渲染表单网格布局，动态绑定控件类型与数据模型，并统一收集校验规则。
@@ -55,12 +82,14 @@ Stores --> Views
 - 状态管理：维护设计器与实例填写的状态，确保跨组件共享与持久化。
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 833-848:833-848](file://VAT_EPR_动态表单技术方案.md#L833-L848)
+- [DynamicForm.vue: 1-146:1-146](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L1-L146)
+- [ControlRenderer.vue: 1-200:1-200](file://genetics-web/src/components/DynamicForm/ControlRenderer.vue#L1-L200)
+- [formDesigner.js: 1-136:1-136](file://genetics-web/src/stores/formDesigner.js#L1-L136)
 
 ## 架构总览
 动态表单系统从前端到后端的交互链路如下：
 - 前端通过接口获取模板与控件详情，解析json_schema生成网格布局
-- 根据controlType渲染对应Element Plus组件，绑定v-model与校验规则
+- 根据controlType渲染对应Naive UI组件，绑定v-model与校验规则
 - 用户填写完成后，将formData原样提交至后端，由服务端转换为实体对象并触发后续业务
 
 ```mermaid
@@ -87,49 +116,53 @@ A-->>V : 展示提交结果
 ```
 
 **图表来源**
-- [VAT_EPR_动态表单技术方案.md: 531-548](file://VAT_EPR_动态表form_schema与controlDetails渲染流程)
-- [VAT_EPR_动态表单技术方案.md: 306-380:306-380](file://VAT_EPR_动态表单技术方案.md#L306-L380)
+- [DynamicForm.vue: 1-146:1-146](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L1-L146)
+- [InstanceForm.vue: 1-238:1-238](file://genetics-web/src/views/instance/InstanceForm.vue#L1-L238)
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 531-548:531-548](file://VAT_EPR_动态表单技术方案.md#L531-L548)
-- [VAT_EPR_动态表单技术方案.md: 306-380:306-380](file://VAT_EPR_动态表单技术方案.md#L306-L380)
+- [DynamicForm.vue: 1-146:1-146](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L1-L146)
+- [InstanceForm.vue: 1-238:1-238](file://genetics-web/src/views/instance/InstanceForm.vue#L1-L238)
 
 ## 详细组件分析
 
-### Element Plus组件库选择理由
+### Naive UI组件库选择理由
 - 生态完善：组件丰富、文档详尽、社区活跃，适合快速构建企业级界面
 - 与Vue 3高度契合：Composition API友好、TypeScript支持良好
 - 主题系统与按需引入：支持主题定制与Tree-shaking，有利于控制包体积
 - 国际化与无障碍：内置多语言与ARIA支持，便于国际化与可访问性
 - 与Vite/Vue生态无缝集成：开发体验与构建效率高
+- 更好的TypeScript支持：Naive UI对TypeScript的支持更加完善
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 19-28:19-28](file://VAT_EPR_动态表单技术方案.md#L19-L28)
+- [package.json: 10-18:10-18](file://genetics-web/package.json#L10-L18)
 
 ### 安装与配置
-- 安装Element Plus与图标库：通过包管理器安装Element Plus与图标依赖
-- 插件注册：在应用入口注册Element Plus插件，以便全局使用
-- 国际化配置：按需设置语言与本地化资源
-- 主题定制：通过CSS变量或样式覆盖实现品牌化定制
-- 按需引入：结合构建工具与插件，仅打包使用到的组件与样式，降低体积
+- 安装Naive UI：通过包管理器安装naive-ui依赖
+- 插件注册：在应用入口注册naive插件，以便全局使用
+- 主题定制：通过NConfigProvider的themeOverrides属性实现品牌化定制
+- 国际化配置：Naive UI内置国际化支持，可通过配置实现多语言切换
+- 消息系统：使用NMessageProvider、NDialogProvider、NNotificationProvider统一管理消息提示
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 24](file://VAT_EPR_动态表单技术方案.md#L24)
+- [package.json: 10-18:10-18](file://genetics-web/package.json#L10-L18)
+- [main.js: 4-13:4-13](file://genetics-web/src/main.js#L4-L13)
+- [App.vue: 2-44:2-44](file://genetics-web/src/App.vue#L2-L44)
 
 ### 按需引入策略
-- 组件按需引入：仅导入实际使用的组件，减少初始包体积
-- 图标按需引入：避免一次性引入全部图标
-- 样式按需引入：仅引入组件所需样式，避免全量样式
+- 组件按需引入：Naive UI支持Tree-shaking，按需导入组件
+- 图标按需引入：使用@vicons/ionicons5图标库，按需导入图标
+- 主题定制：通过themeOverrides配置主题变量，避免全量样式
 - 构建工具优化：利用Vite与插件自动处理按需引入与Tree-shaking
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 23](file://VAT_EPR_动态表单技术方案.md#L23)
+- [package.json: 10-18:10-18](file://genetics-web/package.json#L10-L18)
+- [App.vue: 108-121:108-121](file://genetics-web/src/App.vue#L108-L121)
 
 ### 常用表单组件使用方式
-- 输入类：el-input（含textarea）、el-input-number
-- 选择类：el-select、el-date-picker
-- 开关类：el-switch
-- 上传类：el-upload（结合上传配置）
+- 输入类：n-input（含textarea）、n-input-number
+- 选择类：n-select、n-date-picker
+- 开关类：n-switch
+- 上传类：n-upload（结合上传配置）
 - 校验规则：基于controlDetails中的正则、必填、长度等约束动态生成
 - 事件处理：统一通过v-model与事件绑定，集中处理输入、失焦、change等
 
@@ -138,12 +171,12 @@ flowchart TD
 Start(["开始渲染"]) --> LoadSchema["加载json_schema与controlDetails"]
 LoadSchema --> BuildGrid["生成网格布局"]
 BuildGrid --> ForEachCell{"遍历每个cell"}
-ForEachCell --> |INPUT/TEXTAREA| RenderInput["渲染 el-input / textarea"]
-ForEachCell --> |SELECT| RenderSelect["渲染 el-select"]
-ForEachCell --> |SWITCH| RenderSwitch["渲染 el-switch"]
-ForEachCell --> |UPLOAD| RenderUpload["渲染 el-upload"]
-ForEachCell --> |DATE| RenderDate["渲染 el-date-picker"]
-ForEachCell --> |NUMBER| RenderNumber["渲染 el-input-number"]
+ForEachCell --> |INPUT/TEXTAREA| RenderInput["渲染 n-input / textarea"]
+ForEachCell --> |SELECT| RenderSelect["渲染 n-select"]
+ForEachCell --> |SWITCH| RenderSwitch["渲染 n-switch"]
+ForEachCell --> |UPLOAD| RenderUpload["渲染 n-upload"]
+ForEachCell --> |DATE| RenderDate["渲染 n-date-picker"]
+ForEachCell --> |NUMBER| RenderNumber["渲染 n-input-number"]
 RenderInput --> BindModel["绑定v-model与属性"]
 RenderSelect --> BindModel
 RenderSwitch --> BindModel
@@ -155,30 +188,31 @@ BuildRules --> End(["完成渲染"])
 ```
 
 **图表来源**
-- [VAT_EPR_动态表单技术方案.md: 531-548:531-548](file://VAT_EPR_动态表单技术方案.md#L531-L548)
+- [ControlRenderer.vue: 1-200:1-200](file://genetics-web/src/components/DynamicForm/ControlRenderer.vue#L1-L200)
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 531-548:531-548](file://VAT_EPR_动态表单技术方案.md#L531-L548)
+- [ControlRenderer.vue: 1-200:1-200](file://genetics-web/src/components/DynamicForm/ControlRenderer.vue#L1-L200)
 
 ### 属性配置与事件处理
 - 属性绑定：通过v-bind将controlDetails中的属性映射到组件
 - 事件绑定：统一监听输入、选择、上传等事件，更新formData
 - 默认值：从controlDetails.default_value注入
 - 占位符与提示：placeholder与tips分别映射到组件的相应属性
-- 上传配置：maxCount、accept、maxSize等通过v-bind传递给el-upload
+- 上传配置：maxCount、accept、maxSize等通过v-bind传递给n-upload
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 39-50:39-50](file://VAT_EPR_动态表单技术方案.md#L39-L50)
-- [VAT_EPR_动态表单技术方案.md: 531-548:531-548](file://VAT_EPR_动态表单技术方案.md#L531-L548)
+- [DynamicForm.vue: 88-128:88-128](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L88-L128)
+- [ControlRenderer.vue: 128-186:128-186](file://genetics-web/src/components/DynamicForm/ControlRenderer.vue#L128-L186)
 
 ### 主题定制、样式覆盖与响应式设计
-- 主题定制：通过CSS变量覆盖Element Plus默认变量，实现品牌色与字号等统一
+- 主题定制：通过NConfigProvider的themeOverrides属性覆盖默认主题变量
 - 样式覆盖：对特定组件进行局部样式覆盖，注意作用域与优先级
 - 响应式设计：结合CSS Grid与媒体查询，适配不同屏幕尺寸
 - 组件尺寸：统一使用中等尺寸，保持一致性与可读性
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 24](file://VAT_EPR_动态表单技术方案.md#L24)
+- [App.vue: 108-121:108-121](file://genetics-web/src/App.vue#L108-L121)
+- [DynamicForm.vue: 138-145:138-145](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L138-L145)
 
 ### 组合使用、嵌套表单与复杂场景
 - 组合使用：在同一表单中混合多种控件类型，通过网格布局合理分配空间
@@ -187,48 +221,51 @@ BuildRules --> End(["完成渲染"])
 - 动态禁用：根据业务条件动态启用/禁用控件，避免无效交互
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 531-548:531-548](file://VAT_EPR_动态表单技术方案.md#L531-L548)
+- [DynamicForm.vue: 88-128:88-128](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L88-L128)
+- [InstanceForm.vue: 180-212:180-212](file://genetics-web/src/views/instance/InstanceForm.vue#L180-L212)
 
 ### 可访问性支持与国际化
 - 可访问性：为表单项提供label与aria-label，确保键盘导航与屏幕阅读器友好
-- 国际化：配置Element Plus语言包，支持多语言切换
+- 国际化：Naive UI内置多语言支持，可通过配置实现国际化
 - 提示与错误：统一错误文案与提示位置，提升用户体验
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 24](file://VAT_EPR_动态表单技术方案.md#L24)
+- [InstanceForm.vue: 180-212:180-212](file://genetics-web/src/views/instance/InstanceForm.vue#L180-L212)
 
 ### 浏览器兼容性
-- 支持现代浏览器：基于Vue 3与Element Plus的最低版本要求，确保主流浏览器可用
+- 支持现代浏览器：基于Vue 3与Naive UI的最低版本要求，确保主流浏览器可用
 - 渐进增强：对不支持特性的功能提供降级方案
 - 兼容性测试：在目标浏览器上验证表单渲染与交互
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 22-24:22-24](file://VAT_EPR_动态表单技术方案.md#L22-L24)
+- [package.json: 10-18:10-18](file://genetics-web/package.json#L10-L18)
 
 ## 依赖分析
 - 组件耦合：动态表单主组件依赖控件分发渲染器与状态管理；控件分发渲染器依赖具体控件组件
-- 外部依赖：Element Plus、Vite、Vue Draggable、Pinia、Axios等
+- 外部依赖：Naive UI、Vite、Vue Draggable、Pinia、Axios等
 - 潜在循环依赖：通过清晰的组件边界与状态管理避免循环依赖
 - 接口契约：前后端通过json_schema与controlDetails约定控件类型与属性
 
 ```mermaid
 graph LR
 DynForm["DynamicForm.vue"] --> Renderer["ControlRenderer.vue"]
-Renderer --> Inputs["InputControl.vue"]
-Renderer --> Selects["SelectControl.vue"]
-Renderer --> Switches["SwitchControl.vue"]
-Renderer --> Uploads["UploadControl.vue"]
-Renderer --> Textareas["TextareaControl.vue"]
-Renderer --> Dates["DateControl.vue"]
-DynForm --> Stores["formInstance.js"]
+Renderer --> Inputs["NInput/NInputNumber"]
+Renderer --> Selects["NSelect"]
+Renderer --> Switches["NSwitch"]
+Renderer --> Uploads["NUpload/NButton"]
+Renderer --> Textareas["NInput(type='textarea')"]
+Renderer --> Dates["NDatePicker"]
+DynForm --> Stores["formDesigner.js"]
 DynForm --> API["api/*"]
 ```
 
 **图表来源**
-- [VAT_EPR_动态表单技术方案.md: 833-848:833-848](file://VAT_EPR_动态表单技术方案.md#L833-L848)
+- [DynamicForm.vue: 1-146:1-146](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L1-L146)
+- [ControlRenderer.vue: 1-200:1-200](file://genetics-web/src/components/DynamicForm/ControlRenderer.vue#L1-L200)
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 833-848:833-848](file://VAT_EPR_动态表单技术方案.md#L833-L848)
+- [DynamicForm.vue: 1-146:1-146](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L1-L146)
+- [ControlRenderer.vue: 1-200:1-200](file://genetics-web/src/components/DynamicForm/ControlRenderer.vue#L1-L200)
 
 ## 性能考虑
 - 懒加载：对非首屏控件与重型组件采用懒加载，减少初始渲染压力
@@ -238,21 +275,30 @@ DynForm --> API["api/*"]
 - 渲染优化：合理拆分组件、避免不必要的重渲染，使用浅比较与计算属性
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 23-24:23-24](file://VAT_EPR_动态表单技术方案.md#L23-L24)
+- [ControlPanel.vue: 113-165:113-165](file://genetics-web/src/components/FormDesigner/ControlPanel.vue#L113-L165)
+- [Canvas.vue: 265-281:265-281](file://genetics-web/src/components/FormDesigner/Canvas.vue#L265-L281)
 
 ## 故障排查指南
 - 控件类型不匹配：检查controlType与组件映射关系，确保渲染正确
-- 校验不生效：确认动态规则生成逻辑与Element Plus校验机制一致
+- 校验不生效：确认动态规则生成逻辑与Naive UI校验机制一致
 - 上传异常：核对上传配置与后端接口返回，检查文件大小与格式限制
 - 数据不一致：检查v-model绑定与formData更新时机，避免异步竞态
 - 样式冲突：定位样式作用域与优先级，必要时使用深度选择器或CSS Modules
+- 主题不生效：检查NConfigProvider的themeOverrides配置是否正确应用
 
 **章节来源**
-- [VAT_EPR_动态表单技术方案.md: 531-548:531-548](file://VAT_EPR_动态表单技术方案.md#L531-L548)
+- [ControlRenderer.vue: 128-186:128-186](file://genetics-web/src/components/DynamicForm/ControlRenderer.vue#L128-L186)
+- [App.vue: 108-121:108-121](file://genetics-web/src/App.vue#L108-L121)
 
 ## 结论
-通过Element Plus与Vue 3的组合，结合动态表单的渲染与校验机制，能够高效构建灵活、可扩展且易维护的表单系统。遵循按需引入、主题定制、国际化与可访问性等最佳实践，可在保证开发效率的同时兼顾性能与用户体验。建议在项目中持续关注组件升级与构建优化，确保长期可维护性与稳定性。
+通过Naive UI与Vue 3的组合，结合动态表单的渲染与校验机制，能够高效构建灵活、可扩展且易维护的表单系统。Naive UI提供了更好的TypeScript支持、更完善的主题定制能力和更丰富的组件生态。遵循按需引入、主题定制、国际化与可访问性等最佳实践，可在保证开发效率的同时兼顾性能与用户体验。建议在项目中持续关注组件升级与构建优化，确保长期可维护性与稳定性。
 
 ## 附录
 - 术语说明：controlKey、json_schema、controlDetails、formData等关键概念
 - 最佳实践清单：按需引入、样式覆盖、响应式设计、性能优化、可访问性与国际化
+- 组件映射表：EL组件到Naive UI组件的对应关系
+- 主题变量参考：Naive UI支持的主题定制变量
+
+**章节来源**
+- [App.vue: 108-121:108-121](file://genetics-web/src/App.vue#L108-L121)
+- [DynamicForm.vue: 88-128:88-128](file://genetics-web/src/components/DynamicForm/DynamicForm.vue#L88-L128)

@@ -17,6 +17,14 @@ public interface FormInstanceService {
     /** 单独更新业务状态 */
     void updateOrderStatus(Long id, Integer orderStatusId);
 
+    /**
+     * 执行状态流转
+     * @param id 实例ID
+     * @param action 操作编码
+     * @param remark 备注/原因
+     */
+    void executeTransition(Long id, String action, String remark);
+
     Map<String, Object> submit(Long id);
 
     FormInstanceDetailVO getDetailById(Long id);

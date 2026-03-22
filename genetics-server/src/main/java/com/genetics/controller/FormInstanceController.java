@@ -6,8 +6,10 @@ import com.genetics.dto.FormInstanceCreateDTO;
 import com.genetics.dto.FormInstanceDetailVO;
 import com.genetics.dto.FormInstanceSaveDTO;
 import com.genetics.entity.FormInstance;
+import com.genetics.entity.workflow.WorkflowTransition;
 import com.genetics.enums.ServeState;
 import com.genetics.service.FormInstanceService;
+import com.genetics.service.TemplateWorkflowService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class FormInstanceController {
 
     private final FormInstanceService formInstanceService;
+    private final TemplateWorkflowService templateWorkflowService;
 
     /**
      * 根据模板创建服务单实例
@@ -96,5 +99,37 @@ public class FormInstanceController {
                 ))
                 .collect(Collectors.toList());
         return Result.success(options);
+    }
+
+    /**
+     * 获取当前实例可用的操作列表
+     */
+    @GetMapping("/{id}/available-actions")
+    public Result<List<WorkflowTransition>> getAvailableActions(@PathVariable Long id) {
+        FormInstanceDetailVO vo = formInstanceService.getDetailById(id);
+        List<WorkflowTransition> actions = templateWorkflowService.getInstanceAvailableActions(
+                convertToEntity(vo));
+        return Result.success(actions);
+    }
+
+    /**
+     * 执行状态流转
+     */
+    @PostMapping("/{id}/transition")
+    public Result<Void> executeTransition(@PathVariable Long id,
+                                          @RequestParam String action,
+                                          @RequestParam(required = false) String remark) {
+        formInstanceService.executeTransition(id, action, remark);
+        return Result.success();
+    }
+
+    private FormInstance convertToEntity(FormInstanceDetailVO vo) {
+        FormInstance instance = new FormInstance();
+        instance.setId(vo.getInstanceId());
+        instance.setTemplateId(vo.getTemplateId());
+        instance.setCountryCode(vo.getCountryCode());
+        instance.setServiceCodeL1(vo.getServiceCodeL1());
+        instance.setOrderStatusId(vo.getOrderStatusId());
+        return instance;
     }
 }

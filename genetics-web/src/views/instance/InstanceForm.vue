@@ -10,13 +10,24 @@
           <span class="info-item"><b>服务类型：</b>{{ detail.serviceCodeL3 }}</span>
           <n-tag :type="orderTagType" size="small">{{ detail.orderStatusName }}</n-tag>
         </div>
-        <div class="form-actions" v-if="detail.status === 0">
+        <div class="form-actions">
           <n-button @click="goBack">返回</n-button>
-          <n-button :loading="saving" @click="handleSave">保存草稿</n-button>
-          <n-button type="primary" :loading="submitting" @click="confirmSubmit">提交服务单</n-button>
-        </div>
-        <div class="form-actions" v-else>
-          <n-button @click="goBack">返回</n-button>
+          <!-- 草稿状态操作 -->
+          <template v-if="detail.status === 0">
+            <n-button :loading="saving" @click="handleSave">保存草稿</n-button>
+            <n-button type="primary" :loading="submitting" @click="confirmSubmit">提交服务单</n-button>
+          </template>
+          <!-- 工作流操作按钮 -->
+          <template v-else>
+            <n-button
+              v-for="action in availableActions"
+              :key="action.action"
+              :type="action.buttonType || 'default'"
+              @click="handleWorkflowAction(action)"
+            >
+              {{ action.actionName }}
+            </n-button>
+          </template>
         </div>
       </div>
     </n-card>
@@ -82,7 +93,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   NCard,
@@ -96,11 +107,12 @@ import {
   NGi,
   NEmpty,
   NCode,
+  NInput,
   useMessage,
   useDialog
 } from 'naive-ui'
 import DynamicForm from '@/components/DynamicForm/DynamicForm.vue'
-import { getInstance, saveInstance, submitInstance, getOrderStatusOptions } from '@/api/formInstance'
+import { getInstance, saveInstance, submitInstance, getOrderStatusOptions, getAvailableActions, executeTransition } from '@/api/formInstance'
 
 const route = useRoute()
 const router = useRouter()
@@ -119,6 +131,10 @@ const submitResult = ref(null)
 // 业务状态枚举
 const orderStatusOptions = ref([])
 const orderStatusMap = ref({})
+
+// 工作流可用操作
+const availableActions = ref([])
+const actionLoading = ref({})
 
 // 服务信息表单
 const metaForm = reactive({
@@ -156,8 +172,63 @@ async function fetchDetail() {
     metaForm.orderStatusId = res.data.orderStatusId
     metaForm.serviceStartTime = res.data.serviceStartTime ? new Date(res.data.serviceStartTime).getTime() : null
     metaForm.serviceEndTime = res.data.serviceEndTime ? new Date(res.data.serviceEndTime).getTime() : null
+    
+    // 加载可用操作
+    if (res.data.status !== 0) {
+      await loadAvailableActions()
+    }
   } finally {
     loading.value = false
+  }
+}
+
+async function loadAvailableActions() {
+  try {
+    const res = await getAvailableActions(instanceId)
+    availableActions.value = res.data || []
+  } catch {
+    availableActions.value = []
+  }
+}
+
+function handleWorkflowAction(action) {
+  if (action.needRemark) {
+    // 需要填写备注的操作
+    dialog.create({
+      title: action.actionName,
+      content: () => h('n-input', {
+        type: 'textarea',
+        placeholder: action.remarkLabel || '请输入原因',
+        value: '',
+        'on-update:value': (val) => { dialog.remark = val }
+      }),
+      positiveText: '确认',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        await doTransition(action.action, dialog.remark)
+      }
+    })
+  } else {
+    // 不需要备注的操作
+    dialog.create({
+      title: '确认操作',
+      content: `确定要执行「${action.actionName}」吗？`,
+      positiveText: '确认',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        await doTransition(action.action, '')
+      }
+    })
+  }
+}
+
+async function doTransition(action, remark) {
+  try {
+    await executeTransition(instanceId, action, remark)
+    message.success('操作成功')
+    await fetchDetail()
+  } catch (error) {
+    message.error(error.message || '操作失败')
   }
 }
 

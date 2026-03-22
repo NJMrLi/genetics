@@ -1,17 +1,14 @@
 <template>
-  <div class="designer-page">
+  <div class="workflow-page">
     <!-- 顶部标题栏 -->
     <n-card size="small" class="header-card">
       <div class="header-content">
         <div class="template-info">
           <span class="info-label">模板：</span>
-          <span class="info-value">{{ store.templateInfo.templateName || '未命名' }}</span>
+          <span class="info-value">{{ templateInfo.templateName || '未命名' }}</span>
           <n-divider vertical />
           <span class="info-label">版本：</span>
-          <span class="info-value">{{ store.templateInfo.version || '1.0.0' }}</span>
-          <n-divider vertical />
-          <span class="info-label">国家：</span>
-          <span class="info-value">{{ store.templateInfo.countryCode || '-' }}</span>
+          <span class="info-value">{{ templateInfo.version || '1.0.0' }}</span>
         </div>
         <div class="form-actions">
           <n-button @click="goBack">返回</n-button>
@@ -20,50 +17,61 @@
       </div>
     </n-card>
 
-    <!-- 设计器主体 -->
+    <!-- 工作流设计器：等数据加载完再挂载，保证 onMounted 时 modelValue 已有值 -->
     <div class="designer-body">
-      <!-- 左侧控件面板 -->
-      <div class="left-panel">
-        <control-panel />
-      </div>
-      <!-- 右侧画板 -->
-      <div class="right-panel">
-        <canvas-panel />
+      <workflow-config v-if="loaded" v-model="workflowConfig" />
+      <div v-else class="loading-placeholder">
+        <n-spin size="large" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   NCard,
   NButton,
   NDivider,
+  NSpin,
   useMessage
 } from 'naive-ui'
-import { useFormDesignerStore } from '@/stores/formDesigner'
-import ControlPanel from '@/components/FormDesigner/ControlPanel.vue'
-import CanvasPanel from '@/components/FormDesigner/Canvas.vue'
+import WorkflowConfig from '@/components/FormDesigner/WorkflowConfig.vue'
 import { getTemplate, updateTemplate } from '@/api/formTemplate'
 
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
-const store = useFormDesignerStore()
 const templateId = route.params.id
 
 const saving = ref(false)
+const templateInfo = ref({})
+const workflowConfig = ref(null)
+const loaded = ref(false)  // 数据加载完成后再挂载画布
+
+async function loadTemplate() {
+  if (!templateId) return
+  const res = await getTemplate(templateId)
+  templateInfo.value = res.data
+  workflowConfig.value = res.data.workflowConfig || null
+  loaded.value = true
+}
 
 async function handleSave() {
   saving.value = true
   try {
-    const payload = {
-      ...store.templateInfo,
-      jsonSchema: store.jsonSchema
-    }
-    await updateTemplate(templateId, payload)
+    await updateTemplate(templateId, {
+      templateName: templateInfo.value.templateName,
+      version: templateInfo.value.version,
+      countryCode: templateInfo.value.countryCode,
+      serviceCodeL1: templateInfo.value.serviceCodeL1,
+      serviceCodeL2: templateInfo.value.serviceCodeL2,
+      serviceCodeL3: templateInfo.value.serviceCodeL3,
+      remark: templateInfo.value.remark,
+      jsonSchema: templateInfo.value.jsonSchema,
+      workflowConfig: workflowConfig.value
+    })
     message.success('保存成功')
   } finally {
     saving.value = false
@@ -74,20 +82,13 @@ function goBack() {
   router.push('/template')
 }
 
-onMounted(async () => {
-  if (templateId) {
-    const res = await getTemplate(templateId)
-    store.loadTemplate(res.data)
-  }
-})
-
-onUnmounted(() => {
-  store.reset()
+onMounted(() => {
+  loadTemplate()
 })
 </script>
 
 <style scoped>
-.designer-page {
+.workflow-page {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 100px);
@@ -127,7 +128,6 @@ onUnmounted(() => {
 
 .designer-body {
   flex: 1;
-  display: flex;
   min-height: 0;
   border-radius: 8px;
   overflow: hidden;
@@ -135,14 +135,10 @@ onUnmounted(() => {
   background: #fff;
 }
 
-.left-panel {
-  width: 280px;
-  flex-shrink: 0;
-  border-right: 1px solid #e0e0e6;
-}
-
-.right-panel {
-  flex: 1;
-  overflow: hidden;
+.loading-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

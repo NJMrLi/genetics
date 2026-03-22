@@ -48,6 +48,11 @@ public class FormTemplateServiceImpl implements FormTemplateService {
     }
 
     @Override
+    public FormTemplate getById(Long id) {
+        return formTemplateMapper.selectById(id);
+    }
+
+    @Override
     public void publish(Long id) {
         FormTemplate existing = requireExist(id);
         existing.setStatus(1);
@@ -89,10 +94,12 @@ public class FormTemplateServiceImpl implements FormTemplateService {
         entity.setServiceCodeL2(dto.getServiceCodeL2());
         entity.setServiceCodeL3(dto.getServiceCodeL3());
         entity.setRemark(dto.getRemark());
+        // workflowConfig
+        entity.setWorkflowConfig(dto.getWorkflowConfig());
         // jsonSchema: Object -> JSON String
         try {
-            if (dto.getJsonSchema() instanceof String s) {
-                entity.setJsonSchema(s);
+            if (dto.getJsonSchema() instanceof String) {
+                entity.setJsonSchema((String) dto.getJsonSchema());
             } else {
                 entity.setJsonSchema(objectMapper.writeValueAsString(dto.getJsonSchema()));
             }
@@ -116,6 +123,7 @@ public class FormTemplateServiceImpl implements FormTemplateService {
         vo.setServiceCodeL3(template.getServiceCodeL3());
         vo.setStatus(template.getStatus());
         vo.setRemark(template.getRemark());
+        vo.setWorkflowConfig(template.getWorkflowConfig());
 
         // 解析 JSON Schema
         try {
@@ -153,8 +161,8 @@ public class FormTemplateServiceImpl implements FormTemplateService {
                     if (cells != null) {
                         for (Map<String, Object> cell : cells) {
                             Object cid = cell.get("controlId");
-                            if (cid instanceof Number n) {
-                                ids.add(n.longValue());
+                            if (cid instanceof Number) {
+                                ids.add(((Number) cid).longValue());
                             }
                         }
                     }

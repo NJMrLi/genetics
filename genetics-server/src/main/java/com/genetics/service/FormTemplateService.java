@@ -15,6 +15,8 @@ public interface FormTemplateService {
 
     void delete(Long id);
 
+    FormTemplate getById(Long id);
+
     FormTemplateDetailVO getDetailById(Long id);
 
     Page<FormTemplate> page(int pageNum, int pageSize, String countryCode, String serviceCodeL3);

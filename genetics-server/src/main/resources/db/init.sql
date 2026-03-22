@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS `form_template` (
     `service_code_l2` VARCHAR(10)  NOT NULL COMMENT '二级服务code',
     `service_code_l3` VARCHAR(10)  NOT NULL COMMENT '三级服务code',
     `json_schema`     LONGTEXT     NOT NULL COMMENT '画板定义的JSON Schema',
+    `workflow_config` LONGTEXT     DEFAULT NULL COMMENT '工作流配置JSON',
     `status`          TINYINT(1)  NOT NULL DEFAULT 0 COMMENT '状态: 0草稿 1发布',
     `remark`          VARCHAR(500) DEFAULT NULL COMMENT '备注',
     `create_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,

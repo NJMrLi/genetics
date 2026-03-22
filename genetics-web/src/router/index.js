@@ -18,10 +18,22 @@ const routes = [
     meta: { title: '服务单模板' }
   },
   {
-    path: '/template/designer/:id?',
-    name: 'TemplateDesigner',
+    path: '/template/create',
+    name: 'TemplateCreate',
+    component: () => import('@/views/template/TemplateCreate.vue'),
+    meta: { title: '新建模板' }
+  },
+  {
+    path: '/template/form-designer/:id',
+    name: 'FormDesigner',
     component: () => import('@/views/template/TemplateDesigner.vue'),
-    meta: { title: '模板设计器' }
+    meta: { title: '表单配置' }
+  },
+  {
+    path: '/template/workflow-designer/:id',
+    name: 'WorkflowDesigner',
+    component: () => import('@/views/template/WorkflowDesigner.vue'),
+    meta: { title: '流程配置' }
   },
   {
     path: '/instance',

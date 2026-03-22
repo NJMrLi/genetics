@@ -1,5 +1,6 @@
 package com.genetics.dto;
 
+import com.genetics.entity.workflow.TemplateWorkflowConfig;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
@@ -30,6 +31,9 @@ public class FormTemplateDTO {
 
     /** JSON Schema 对象，接口层解析为字符串存储 */
     private Object jsonSchema;
+
+    /** 工作流配置 */
+    private TemplateWorkflowConfig workflowConfig;
 
     private Integer status;
     private String remark;

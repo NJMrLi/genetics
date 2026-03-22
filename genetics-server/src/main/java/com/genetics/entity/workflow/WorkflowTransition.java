@@ -1,0 +1,40 @@
+package com.genetics.entity.workflow;
+
+import lombok.Data;
+
+/**
+ * 工作流状态流转规则
+ */
+@Data
+public class WorkflowTransition {
+
+    /**
+     * 起始状态编码（ServeState的id）
+     */
+    private Integer from;
+
+    /**
+     * 目标状态编码
+     */
+    private Integer to;
+
+    /**
+     * 操作编码
+     */
+    private String action;
+
+    /**
+     * 操作名称
+     */
+    private String actionName;
+
+    /**
+     * 是否需要填写备注/原因
+     */
+    private Boolean needRemark;
+
+    /**
+     * 条件：VAT/EPR/null（为null表示都适用）
+     */
+    private String condition;
+}
