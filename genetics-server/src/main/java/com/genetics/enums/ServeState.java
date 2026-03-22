@@ -13,6 +13,7 @@ public enum ServeState {
     HANDING(30, "待递交", "warning"),
     ORGN_HANDING(31, "组织处理", "warning"),
     TAX_HANDING(32, "税局处理", "warning"),
+    LOCAL_COLLEAGUE(33, "当地同事", "warning"),
     SUCCESS(40, "已完成", "success"),
     BACKED(50, "已驳回", "danger"),
     CANCLED(99, "已终止", "info");
@@ -59,6 +60,7 @@ public enum ServeState {
         enumSet.add(ServeState.AUITING);
         enumSet.add(ServeState.HANDING);
         enumSet.add(ServeState.ORGN_HANDING);
+        enumSet.add(ServeState.LOCAL_COLLEAGUE);
         enumSet.add(ServeState.SUCCESS);
         enumSet.add(ServeState.BACKED);
         enumSet.add(ServeState.CANCLED);

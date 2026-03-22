@@ -55,7 +55,10 @@ public class FormInstanceServiceImpl implements FormInstanceService {
         instance.setServiceCodeL3(template.getServiceCodeL3());
         instance.setFormData("{}");
         instance.setStatus(InstanceStatus.DRAFT.getCode());
-        instance.setOrderStatusId(ServeState.WAIT_SUBMIT.getId());
+        
+        // 初始化为流程配置的第一个状态 (通常是 10-待提交)
+        // 建议从 templateWorkflowService 获取初始状态
+        instance.setOrderStatusId(ServeState.WAIT_SUBMIT.getId()); 
         formInstanceMapper.insert(instance);
 
         // 构建详情VO
@@ -66,9 +69,13 @@ public class FormInstanceServiceImpl implements FormInstanceService {
     @Override
     public void save(Long id, FormInstanceSaveDTO dto) {
         FormInstance instance = requireExist(id);
-        if (instance.getStatus() > InstanceStatus.DRAFT.getCode()) {
-            throw new IllegalArgumentException("已提交的服务单不可修改");
+        
+        // 如果业务状态是 待提交(10) 或 已驳回(50)，则允许保存，即使逻辑状态 status 已经变成了 1(已提交)
+        boolean isEditable = instance.getOrderStatusId() == 10 || instance.getOrderStatusId() == 50;
+        if (!isEditable && instance.getStatus() > InstanceStatus.DRAFT.getCode()) {
+            throw new IllegalArgumentException("当前业务状态不支持修改表单内容");
         }
+        
         try {
             instance.setFormData(objectMapper.writeValueAsString(dto.getFormData()));
         } catch (JsonProcessingException e) {
@@ -91,10 +98,13 @@ public class FormInstanceServiceImpl implements FormInstanceService {
     @Override
     public Map<String, Object> submit(Long id) {
         FormInstance instance = requireExist(id);
-        if (instance.getStatus() >= InstanceStatus.SUBMITTED.getCode()) {
-            throw new IllegalArgumentException("服务单已提交，请勿重复操作");
+        
+        // 允许重新提交：只要业务状态是 待提交(10) 或 已驳回(50) 
+        boolean isCanSubmit = instance.getOrderStatusId() == 10 || instance.getOrderStatusId() == 50;
+        if (!isCanSubmit && instance.getStatus() >= InstanceStatus.SUBMITTED.getCode()) {
+            throw new IllegalArgumentException("当前业务状态不支持提交操作");
         }
-
+        
         // 解析 formData
         Map<String, Object> formData;
         try {
@@ -106,6 +116,14 @@ public class FormInstanceServiceImpl implements FormInstanceService {
 
         // 转换为业务实体对象
         Map<String, Object> converted = formDataConverter.convert(formData);
+
+        // TODO: 在此处添加提交后的业务逻辑处理
+        // 例如：同步数据到 ERP 系统、发送通知邮件、触发第三方 API 等
+        log.info("【业务逻辑TODO】开始处理服务单 {} 的提交后续逻辑...", id);
+
+        // 触发工作流状态流转：提交 (submit)
+        Integer newStatus = templateWorkflowService.doInstanceTransition(instance, "submit");
+        instance.setOrderStatusId(newStatus);
 
         // 打印转换结果日志
         converted.forEach((className, obj) -> {
@@ -159,6 +177,11 @@ public class FormInstanceServiceImpl implements FormInstanceService {
         if ("submit".equals(action) || "resubmit".equals(action)) {
             instance.setStatus(InstanceStatus.SUBMITTED.getCode());
             instance.setSubmitTime(LocalDateTime.now());
+        }
+        
+        // 如果是驳回操作，重置逻辑状态为草稿
+        if ("auditReject".equals(action)) {
+            instance.setStatus(InstanceStatus.DRAFT.getCode());
         }
         
         // TODO: 可以添加操作日志记录，记录 remark

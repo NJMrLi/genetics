@@ -44,15 +44,6 @@
           <span class="palette-dot"></span>
           {{ state.label }}
         </div>
-        <div class="palette-section" style="margin-top:12px">判断节点</div>
-        <div
-          class="palette-item palette-gateway"
-          draggable="true"
-          @dragstart="onDragStart($event, { type: 'gateway', value: 'gw', label: '判断' })"
-        >
-          <span class="gateway-diamond"></span>
-          条件判断
-        </div>
       </div>
 
       <!-- Vue Flow 画布 -->
@@ -90,19 +81,6 @@
               <Handle type="source" :position="Position.Bottom" class="fh fh-bottom" />
             </div>
           </template>
-
-          <!-- 判断节点（菱形） -->
-          <template #node-gateway="nodeProps">
-            <div class="flow-node-gateway" :class="{ selected: nodeProps.selected }">
-              <div class="gateway-shape">
-                <span class="gateway-label">{{ nodeProps.data.label || '判断' }}</span>
-              </div>
-              <Handle type="target" :position="Position.Top" class="fh fh-top" />
-              <Handle type="source" :position="Position.Bottom" class="fh fh-bottom" />
-              <Handle type="source" :position="Position.Left" class="fh fh-left" id="left" />
-              <Handle type="source" :position="Position.Right" class="fh fh-right" id="right" />
-            </div>
-          </template>
         </VueFlow>
 
         <!-- 空状态提示 -->
@@ -122,15 +100,16 @@
             流转规则
           </div>
           <n-form size="small" label-placement="top" :show-feedback="false" class="panel-form">
-            <n-form-item label="操作名称">
-              <n-input
-                v-model:value="selectedEdge.data.actionName"
-                @update:value="syncEdgeLabel"
-                placeholder="如：提交、审核通过"
+            <n-form-item label="选择操作">
+              <n-select
+                v-model:value="selectedEdge.data.action"
+                :options="presetActions"
+                placeholder="请选择预设操作"
+                @update:value="onActionSelect"
               />
             </n-form-item>
-            <n-form-item label="操作编码">
-              <n-input v-model:value="selectedEdge.data.action" placeholder="如：submit" />
+            <n-form-item label="操作代码 (Key)">
+              <n-input :value="selectedEdge.data.action" disabled placeholder="由操作自动生成" />
             </n-form-item>
             <n-form-item label="适用条件">
               <n-select
@@ -157,10 +136,7 @@
             节点配置
           </div>
           <n-form size="small" label-placement="top" :show-feedback="false" class="panel-form">
-            <n-form-item v-if="selectedNode.type === 'gateway'" label="判断说明">
-              <n-input v-model:value="selectedNode.data.label" placeholder="如：服务类型判断" />
-            </n-form-item>
-            <n-form-item v-else label="状态名称">
+            <n-form-item label="状态名称">
               <n-input :value="selectedNode.data.label" disabled />
             </n-form-item>
             <n-form-item v-if="selectedNode.type === 'state'" label="允许终止服务">
@@ -240,6 +216,18 @@ const conditionOptions = [
   { label: 'EPR', value: 'EPR' }
 ]
 
+const presetActions = [
+  { label: '提交', value: 'submit' },
+  { label: '审核通过', value: 'auditPass' },
+  { label: '审核驳回', value: 'auditReject', needRemark: true },
+  { label: '重新提交', value: 'resubmit' },
+  { label: '递交当地同事', value: 'submitLocal' },
+  { label: '递交税局', value: 'submitTax' },
+  { label: '递交组织', value: 'submitOrg' },
+  { label: '完成', value: 'complete' },
+  { label: '终止', value: 'terminate' }
+]
+
 const stateColors = {
   10: '#18a058', 20: '#f0a020', 30: '#2080f0',
   31: '#8a2be2', 32: '#e91e8c', 33: '#00bcd4',
@@ -256,8 +244,6 @@ const defaultEdgeOptions = {
 
 const NODE_W = 140
 const NODE_H = 52
-const GW_W = 80
-const GW_H = 80
 
 // -------- dagre 自动布局 --------
 function getLayoutedNodes(nodeList, edgeList) {
@@ -266,8 +252,7 @@ function getLayoutedNodes(nodeList, edgeList) {
   g.setGraph({ rankdir: 'TB', nodesep: 70, ranksep: 90, marginx: 40, marginy: 40 })
 
   nodeList.forEach(n => {
-    const isGw = n.type === 'gateway'
-    g.setNode(n.id, { width: isGw ? GW_W : NODE_W, height: isGw ? GW_H : NODE_H })
+    g.setNode(n.id, { width: NODE_W, height: NODE_H })
   })
   edgeList.forEach(e => g.setEdge(e.source, e.target))
   dagre.layout(g)
@@ -364,27 +349,20 @@ function onDrop(e) {
   const payload = dragPayload.value
   dragPayload.value = null
 
-  const isGateway = payload.type === 'gateway'
-  const nodeId = isGateway
-    ? `gw-${Date.now()}`
-    : `node-${payload.value}`
+  const nodeId = `node-${payload.value}`
 
-  if (!isGateway && nodes.value.find(n => n.id === nodeId)) {
+  if (nodes.value.find(n => n.id === nodeId)) {
     message.warning('该状态节点已在画布上')
     return
   }
 
   // 坐标转换：屏幕坐标 → 画布坐标
   const rect = flowWrapper.value.getBoundingClientRect()
-  const w = isGateway ? GW_W : NODE_W
-  const h = isGateway ? GW_H : NODE_H
   nodes.value = [...nodes.value, {
     id: nodeId,
-    type: isGateway ? 'gateway' : 'state',
-    position: { x: e.clientX - rect.left - w / 2, y: e.clientY - rect.top - h / 2 },
-    data: isGateway
-      ? { label: '判断' }
-      : { stateId: payload.value, label: payload.label }
+    type: 'state',
+    position: { x: e.clientX - rect.left - NODE_W / 2, y: e.clientY - rect.top - NODE_H / 2 },
+    data: { stateId: payload.value, label: payload.label }
   }]
 }
 
@@ -404,9 +382,9 @@ function onConnect(params) {
     id: `edge-${edgeSeq++}`,
     source: params.source,
     target: params.target,
-    label: '',
+    label: '请选择操作',
     ...defaultEdgeOptions,
-    data: { from: fromState, to: toState, action: '', actionName: '', needRemark: false, condition: null }
+    data: { from: fromState, to: toState, action: null, actionName: '', needRemark: false, condition: null }
   }]
 }
 
@@ -424,9 +402,16 @@ function onPaneClick() {
   selectedNode.value = null
 }
 
-function syncEdgeLabel(val) {
+function onActionSelect(val) {
   const edge = edges.value.find(e => e.id === selectedEdge.value?.id)
-  if (edge) edge.label = val
+  const action = presetActions.find(a => a.value === val)
+  if (edge && action) {
+    edge.data.actionName = action.label
+    edge.label = action.label
+    if (action.needRemark !== undefined) {
+      edge.data.needRemark = action.needRemark
+    }
+  }
 }
 
 function removeSelectedEdge() {
@@ -621,14 +606,6 @@ function loadEprConfig() {
   background: var(--node-color, #909399);
   flex-shrink: 0;
 }
-.gateway-diamond {
-  width: 12px;
-  height: 12px;
-  background: #f0a020;
-  transform: rotate(45deg);
-  flex-shrink: 0;
-  border-radius: 2px;
-}
 
 /* 画布 */
 .flow-container {
@@ -689,39 +666,6 @@ function loadEprConfig() {
   border-radius: 0 0 6px 6px;
 }
 
-/* 判断节点（菱形） */
-.flow-node-gateway {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.gateway-shape {
-  width: 68px;
-  height: 68px;
-  background: #fff7e6;
-  border: 2px solid #f0a020;
-  transform: rotate(45deg);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.flow-node-gateway.selected .gateway-shape,
-.flow-node-gateway:hover .gateway-shape {
-  box-shadow: 0 0 0 2px #f0a020;
-}
-.gateway-label {
-  transform: rotate(-45deg);
-  font-size: 11px;
-  color: #d48806;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 /* Handle 连接点 */
 .fh {
   width: 12px !important;
@@ -732,8 +676,7 @@ function loadEprConfig() {
   opacity: 0;
   transition: opacity 0.15s;
 }
-.flow-node-state:hover .fh,
-.flow-node-gateway:hover .fh {
+.flow-node-state:hover .fh {
   opacity: 1;
 }
 .fh-top { top: -7px !important; }

@@ -1,0 +1,88 @@
+
+/* 
+  Global Styles for VAT & EPR 动态表单系统 
+  Powered by Naive UI
+*/
+
+:root {
+  --primary-color: #18a058;
+  --bg-color: #f5f7f9;
+  --header-height: 60px;
+  --sider-width: 220px;
+  --card-shadow: 0 1px 2px -2px rgba(0, 0, 0, 0.08), 0 3px 6px 0 rgba(0, 0, 0, 0.06), 0 5px 12px 4px rgba(0, 0, 0, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Page Layout Utilities */
+.page-container {
+  padding: 24px;
+  min-height: 100%;
+}
+
+.page-header {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-header .title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2225;
+}
+
+/* Toolbar Style */
+.toolbar {
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Card Overrides */
+.n-card {
+  border-radius: 8px !important;
+  box-shadow: var(--card-shadow);
+  border: none !important;
+}
+
+/* Table Overrides */
+.n-data-table .n-data-table-th {
+  background-color: #fafafc !important;
+  font-weight: 600 !important;
+}
+
+/* Form Styles */
+.form-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-left: 10px;
+  border-left: 4px solid var(--primary-color);
+  color: #1f2225;
+}
+
+/* Animation */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}

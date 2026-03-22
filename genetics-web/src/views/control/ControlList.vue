@@ -1,7 +1,21 @@
 <template>
-  <div class="page">
+  <div class="page-container">
     <!-- 工具栏 -->
-    <div class="page-toolbar">
+    <div class="page-header">
+      <div class="title">控件管理</div>
+      <n-space>
+        <n-button secondary @click="importDialogVisible = true">
+          <template #icon><n-icon><CloudUploadOutline /></n-icon></template>
+          JSON 导入
+        </n-button>
+        <n-button type="primary" @click="openDialog()">
+          <template #icon><n-icon><AddOutline /></n-icon></template>
+          新增控件
+        </n-button>
+      </n-space>
+    </div>
+
+    <div class="toolbar">
       <n-space>
         <n-select
           v-model:value="query.groupName"
@@ -26,33 +40,31 @@
           style="width: 200px"
           @keyup.enter="fetchList"
         />
-        <n-button type="primary" @click="fetchList">
+        <n-button type="primary" ghost @click="fetchList">
           <template #icon><n-icon><SearchOutline /></n-icon></template>
           查询
         </n-button>
       </n-space>
-      <n-button type="primary" @click="openDialog()">
-        <template #icon><n-icon><AddOutline /></n-icon></template>
-        新增控件
-      </n-button>
     </div>
 
-    <!-- 按业务分组展示 -->
-    <n-spin :show="loading">
-      <n-collapse v-model:expanded-names="activeGroups">
-        <n-collapse-item
-          v-for="(items, groupName) in groupedList"
-          :key="groupName"
-          :name="groupName"
-        >
-          <template #header>
-            <span class="group-header">{{ groupName }} ({{ items.length }})</span>
-          </template>
-          <n-data-table :columns="columns" :data="items" :bordered="false" size="small" />
-        </n-collapse-item>
-      </n-collapse>
-      <n-empty v-if="!loading && !Object.keys(groupedList).length" description="暂无控件" />
-    </n-spin>
+    <n-card :bordered="false" content-style="padding: 0;">
+      <!-- 按业务分组展示 -->
+      <n-spin :show="loading">
+        <n-collapse v-model:expanded-names="activeGroups" style="padding: 16px">
+          <n-collapse-item
+            v-for="(items, groupName) in groupedList"
+            :key="groupName"
+            :name="groupName"
+          >
+            <template #header>
+              <span class="group-header">{{ groupName }} ({{ items.length }})</span>
+            </template>
+            <n-data-table :columns="columns" :data="items" :bordered="false" size="small" />
+          </n-collapse-item>
+        </n-collapse>
+        <n-empty v-if="!loading && !Object.keys(groupedList).length" description="暂无控件" />
+      </n-spin>
+    </n-card>
 
     <!-- 新增/编辑弹窗 -->
     <n-modal
@@ -154,6 +166,41 @@
         </n-space>
       </template>
     </n-modal>
+
+    <!-- JSON 导入弹窗 -->
+    <n-modal
+      v-model:show="importDialogVisible"
+      preset="card"
+      title="批量导入控件 (JSON)"
+      style="width: 800px"
+    >
+      <n-alert type="info" style="margin-bottom: 16px">
+        请输入 JSON 格式的控件定义数组。如果控件 Key 已存在，将执行更新操作。
+      </n-alert>
+      <n-input
+        v-model:value="importJson"
+        type="textarea"
+        placeholder='[
+  {
+    "controlName": "公司名称",
+    "controlKey": "Company.name",
+    "controlType": "INPUT",
+    "required": true,
+    "placeholder": "请输入公司名称"
+  }
+]'
+        :rows="15"
+        style="font-family: monospace"
+      />
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="importDialogVisible = false">取消</n-button>
+          <n-button type="primary" :loading="importing" @click="handleImport">
+            执行导入
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -181,7 +228,7 @@ import {
   useMessage,
   useDialog
 } from 'naive-ui'
-import { SearchOutline, AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
+import { SearchOutline, AddOutline, CreateOutline, TrashOutline, CloudUploadOutline } from '@vicons/ionicons5'
 import { listAllControls, createControl, updateControl, deleteControl, getBusinessTypes } from '@/api/formControl'
 
 const message = useMessage()
@@ -196,6 +243,64 @@ const CONTROL_TYPES = [
   { label: '日期', value: 'DATE' },
   { label: '文件上传', value: 'UPLOAD' }
 ]
+
+// JSON 导入相关
+const importDialogVisible = ref(false)
+const importJson = ref('')
+const importing = ref(false)
+
+async function handleImport() {
+  if (!importJson.value.trim()) {
+    message.warning('请输入 JSON 内容')
+    return
+  }
+  
+  let data = []
+  try {
+    data = JSON.parse(importJson.value)
+    if (!Array.isArray(data)) {
+      message.error('JSON 必须是一个数组')
+      return
+    }
+  } catch (e) {
+    message.error('JSON 格式错误: ' + e.message)
+    return
+  }
+  
+  importing.value = true
+  let successCount = 0
+  let failCount = 0
+  
+  try {
+    for (const item of data) {
+      if (!item.controlKey || !item.controlName) {
+        failCount++
+        continue
+      }
+      
+      // 检查是否存在
+      const existing = list.value.find(c => c.controlKey === item.controlKey)
+      try {
+        if (existing) {
+          await updateControl(existing.id, { ...existing, ...item })
+        } else {
+          await createControl(item)
+        }
+        successCount++
+      } catch (err) {
+        failCount++
+      }
+    }
+    
+    message.success(`导入完成：成功 ${successCount} 个，失败 ${failCount} 个`)
+    importDialogVisible.value = false
+    importJson.value = ''
+    fetchList()
+    fetchBusinessTypes()
+  } finally {
+    importing.value = false
+  }
+}
 
 // 业务分组映射
 const GROUP_MAPPING = {
@@ -251,20 +356,28 @@ const columns = [
   {
     title: '操作',
     key: 'actions',
-    width: 140,
-    render: (row) => h(NSpace, null, {
+    width: 180,
+    fixed: 'right',
+    render: (row) => h(NSpace, { size: 'small', wrap: false }, {
       default: () => [
         h(NButton, {
           size: 'small',
-          quaternary: true,
+          secondary: true,
+          type: 'primary',
           onClick: () => openDialog(row)
-        }, { default: () => '编辑' }),
+        }, { 
+          default: () => '编辑',
+          icon: () => h(NIcon, null, { default: () => h(CreateOutline) })
+        }),
         h(NButton, {
           size: 'small',
-          quaternary: true,
+          secondary: true,
           type: 'error',
           onClick: () => confirmDelete(row)
-        }, { default: () => '删除' })
+        }, { 
+          default: () => '删除',
+          icon: () => h(NIcon, null, { default: () => h(TrashOutline) })
+        })
       ]
     })
   }
@@ -433,7 +546,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page { display: flex; flex-direction: column; gap: 16px; height: 100%; }
-.page-toolbar { display: flex; justify-content: space-between; align-items: center; }
+.page-container { width: 100%; }
 .group-header { font-weight: 600; font-size: 14px; }
 </style>

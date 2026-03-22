@@ -1,3 +1,4 @@
+
 <template>
   <n-config-provider :theme-overrides="themeOverrides">
     <n-message-provider>
@@ -11,14 +12,15 @@
               :width="220"
               :native-scrollbar="false"
               show-trigger
+              inverted
               @collapse="collapsed = true"
               @expand="collapsed = false"
             >
               <div class="logo">
-                <n-icon :size="24" color="#18a058">
+                <n-icon :size="28" color="#18a058">
                   <DocumentTextOutline />
                 </n-icon>
-                <span v-show="!collapsed" class="logo-text">VAT & EPR 表单系统</span>
+                <span v-show="!collapsed" class="logo-text">Genetics VAT</span>
               </div>
               <n-menu
                 :collapsed="collapsed"
@@ -26,15 +28,48 @@
                 :collapsed-icon-size="22"
                 :options="menuOptions"
                 :value="activeKey"
+                inverted
                 @update:value="handleMenuSelect"
               />
+              <div class="sider-footer" v-show="!collapsed">
+                <n-text depth="3" style="font-size: 12px">v1.0.0 © 2026 Genetics</n-text>
+              </div>
             </n-layout-sider>
             <n-layout>
               <n-layout-header bordered class="header">
-                <span class="page-title">{{ currentTitle }}</span>
+                <div class="header-left">
+                  <n-breadcrumb>
+                    <n-breadcrumb-item>首页</n-breadcrumb-item>
+                    <n-breadcrumb-item>{{ currentTitle }}</n-breadcrumb-item>
+                  </n-breadcrumb>
+                </div>
+                <div class="header-right">
+                  <n-space align="center" :size="20">
+                    <n-tooltip trigger="hover">
+                      <template #trigger>
+                        <n-button quaternary circle>
+                          <template #icon><n-icon><NotificationsOutline /></n-icon></template>
+                        </n-button>
+                      </template>
+                      通知
+                    </n-tooltip>
+                    <n-dropdown :options="userOptions" @select="handleUserSelect">
+                      <div class="user-info">
+                        <n-avatar round size="small" color="#18a058">Admin</n-avatar>
+                        <span class="username">管理员</span>
+                      </div>
+                    </n-dropdown>
+                  </n-space>
+                </div>
               </n-layout-header>
-              <n-layout-content class="main-content">
-                <router-view />
+              <n-layout-content class="main-content" :native-scrollbar="false">
+                <div class="content-wrapper">
+                  <router-view v-slot="{ Component }">
+                    <transition name="fade" mode="out-in">
+                      <component :is="Component" />
+                    </transition>
+                  </router-view>
+                </div>
               </n-layout-content>
             </n-layout>
           </n-layout>
@@ -57,13 +92,25 @@ import {
   NIcon,
   NMessageProvider,
   NDialogProvider,
-  NNotificationProvider
+  NNotificationProvider,
+  NBreadcrumb,
+  NBreadcrumbItem,
+  NSpace,
+  NAvatar,
+  NDropdown,
+  NButton,
+  NTooltip,
+  NText
 } from 'naive-ui'
 import {
   DocumentTextOutline,
   GridOutline,
-  SettingsOutline
+  SettingsOutline,
+  NotificationsOutline,
+  PersonOutline,
+  LogOutOutline
 } from '@vicons/ionicons5'
+import { themeOverrides } from './theme'
 
 const route = useRoute()
 const router = useRouter()
@@ -77,7 +124,7 @@ const activeKey = computed(() => {
   return 'instance'
 })
 
-const currentTitle = computed(() => route.meta?.title || 'VAT & EPR 动态表单系统')
+const currentTitle = computed(() => route.meta?.title || '管理后台')
 
 function renderIcon(icon) {
   return () => h(NIcon, null, { default: () => h(icon) })
@@ -101,68 +148,113 @@ const menuOptions = [
   }
 ]
 
+const userOptions = [
+  {
+    label: '个人信息',
+    key: 'profile',
+    icon: renderIcon(PersonOutline)
+  },
+  {
+    label: '退出登录',
+    key: 'logout',
+    icon: renderIcon(LogOutOutline)
+  }
+]
+
 function handleMenuSelect(key) {
   router.push(`/${key}`)
 }
 
-const themeOverrides = {
-  common: {
-    primaryColor: '#18a058',
-    primaryColorHover: '#36ad6a',
-    primaryColorPressed: '#0c7a43',
-    primaryColorSuppl: '#36ad6a'
-  },
-  Menu: {
-    itemTextColorActive: '#18a058',
-    itemTextColorActiveHover: '#36ad6a',
-    itemIconColorActive: '#18a058',
-    arrowColorActive: '#18a058'
+function handleUserSelect(key) {
+  if (key === 'logout') {
+    // router.push('/login')
   }
 }
 </script>
 
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #app { height: 100%; }
-
+<style scoped>
 .app-layout {
   height: 100vh;
 }
 
 .logo {
-  height: 60px;
+  height: 64px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
   padding: 0 16px;
-  border-bottom: 1px solid #e0e0e6;
+  gap: 12px;
+  background: #002140;
 }
 
 .logo-text {
-  font-size: 15px;
-  font-weight: 600;
-  color: #18a058;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
   white-space: nowrap;
+  letter-spacing: 1px;
 }
 
 .header {
-  height: 60px;
+  height: 64px;
   padding: 0 24px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  z-index: 10;
 }
 
-.page-title {
-  font-size: 16px;
-  font-weight: 600;
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.user-info:hover {
+  background: #f3f3f5;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 500;
   color: #333;
 }
 
 .main-content {
-  padding: 24px;
   background: #f5f7f9;
-  min-height: calc(100vh - 60px);
+}
+
+.content-wrapper {
+  padding: 24px;
+  min-height: calc(100vh - 64px);
+}
+
+.sider-footer {
+  position: absolute;
+  bottom: 24px;
+  width: 100%;
+  text-align: center;
+  padding: 0 16px;
+}
+
+/* Page Transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

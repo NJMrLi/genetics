@@ -1,57 +1,61 @@
+
 <template>
-  <div class="page">
-    <div class="page-toolbar">
-      <n-space>
-        <n-select
-          v-model:value="query.countryCode"
-          :options="countryOptions"
-          placeholder="国家"
-          clearable
-          style="width: 160px"
-          @update:value="fetchList"
-        />
-        <n-input
-          v-model:value="query.serviceCodeL3"
-          placeholder="三级服务code"
-          clearable
-          style="width: 180px"
-          @keyup.enter="fetchList"
-        />
-        <n-button type="primary" @click="fetchList">
-          <template #icon><n-icon><SearchOutline /></n-icon></template>
-          查询
-        </n-button>
-      </n-space>
+  <div class="page-container">
+    <div class="page-header">
+      <div class="title">模板管理</div>
       <n-button type="primary" @click="goCreate">
         <template #icon><n-icon><AddOutline /></n-icon></template>
         新建模板
       </n-button>
     </div>
 
-    <n-data-table
-      :columns="columns"
-      :data="list"
-      :loading="loading"
-      :bordered="false"
-      :scroll-x="900"
-    />
+    <div class="toolbar">
+      <n-space>
+        <n-select
+          v-model:value="query.countryCode"
+          :options="countryOptions"
+          placeholder="国家"
+          clearable
+          style="width: 180px"
+          @update:value="fetchList"
+        />
+        <n-input
+          v-model:value="query.serviceCodeL3"
+          placeholder="服务类目代码"
+          clearable
+          style="width: 200px"
+          @keyup.enter="fetchList"
+        >
+          <template #prefix>
+            <n-icon><SearchOutline /></n-icon>
+          </template>
+        </n-input>
+        <n-button type="primary" ghost @click="fetchList">
+          查询
+        </n-button>
+        <n-button @click="resetQuery">
+          重置
+        </n-button>
+      </n-space>
+    </div>
 
-    <n-pagination
-      v-model:page="query.page"
-      v-model:page-size="query.size"
-      :item-count="total"
-      :page-sizes="[10, 20, 50]"
-      show-size-picker
-      style="margin-top: 16px; justify-content: flex-end"
-      @update:page="fetchList"
-      @update:page-size="fetchList"
-    />
+    <n-card :bordered="false" content-style="padding: 0;">
+      <n-data-table
+        :columns="columns"
+        :data="list"
+        :loading="loading"
+        :bordered="false"
+        :scroll-x="1000"
+        remote
+        :pagination="pagination"
+      />
+    </n-card>
   </div>
 </template>
 
 <script setup>
-import { h, ref, reactive, onMounted, computed, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { h, ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   NButton,
   NSpace,
@@ -60,55 +64,45 @@ import {
   NSelect,
   NInput,
   NDataTable,
-  NPagination,
   NIcon,
+  NCard,
   useMessage,
   useDialog
 } from 'naive-ui'
-import { SearchOutline, AddOutline, CheckmarkCircleOutline, AlertCircleOutline } from '@vicons/ionicons5'
+import { 
+  SearchOutline, 
+  AddOutline, 
+  CheckmarkCircleOutline, 
+  AlertCircleOutline,
+  CreateOutline,
+  GitNetworkOutline,
+  CloudUploadOutline,
+  TrashOutline
+} from '@vicons/ionicons5'
 import { listTemplates, publishTemplate, deleteTemplate } from '@/api/formTemplate'
 import { getCountries } from '@/api/basic'
 
-// 服务类目映射
-const SERVICE_CATEGORIES = [
-  { id: 1, parentId: 0, name: 'VAT', code: '01' },
-  { id: 2, parentId: 0, name: 'EPR', code: '02' },
-  { id: 3, parentId: 1, name: 'VAT注册申报', code: '0101' },
-  { id: 4, parentId: 1, name: 'VAT申报', code: '0102' },
-  { id: 5, parentId: 2, name: '包装法', code: '0201' },
-  { id: 6, parentId: 2, name: '电池法', code: '0202' },
-  { id: 7, parentId: 2, name: 'WEEE', code: '0203' },
-  { id: 8, parentId: 2, name: '家具法', code: '0204' },
-  { id: 9, parentId: 2, name: '轮胎法', code: '0205' },
-  { id: 10, parentId: 2, name: '印刷纸法', code: '0206' },
-  { id: 11, parentId: 2, name: '纺织品法', code: '0207' },
-  { id: 12, parentId: 2, name: '化学用品法', code: '0208' },
-  { id: 13, parentId: 2, name: '刺穿医疗设备法', code: '0209' },
-  { id: 14, parentId: 3, name: 'VAT新注册申报', code: '010101' },
-  { id: 15, parentId: 3, name: 'VAT转代理申报', code: '010102' },
-  { id: 16, parentId: 3, name: 'VAT申报续费', code: '010103' },
-  { id: 17, parentId: 3, name: 'VAT注销', code: '010104' },
-  { id: 18, parentId: 3, name: 'VAT补申报', code: '010105' },
-  { id: 20, parentId: 5, name: '包装法新注册申报', code: '020101' },
-  { id: 21, parentId: 5, name: '包装法转代理申报', code: '020102' },
-  { id: 22, parentId: 5, name: '包装法申报续费', code: '020103' },
-  { id: 23, parentId: 5, name: '包装法注销', code: '020104' }
-]
-
-function getServiceName(code) {
-  const item = SERVICE_CATEGORIES.find(s => s.code === code)
-  return item ? item.name : code
-}
-
 const router = useRouter()
-const route = useRoute()
 const message = useMessage()
 const dialog = useDialog()
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
 const countries = ref([])
-const query = reactive({ page: 1, size: 20, countryCode: '', serviceCodeL3: '' })
+const query = reactive({ page: 1, size: 10, countryCode: null, serviceCodeL3: '' })
+
+// 服务类目映射 (简化显示)
+const SERVICE_NAME_MAP = {
+  '01': 'VAT',
+  '02': 'EPR',
+  '0101': 'VAT注册申报',
+  '010101': 'VAT新注册申报'
+  // ... 其他映射可以从接口获取或保持现状
+}
+
+function getServiceName(code) {
+  return SERVICE_NAME_MAP[code] || code
+}
 
 const countryOptions = computed(() => 
   countries.value.map(c => ({
@@ -117,48 +111,67 @@ const countryOptions = computed(() =>
   }))
 )
 
-// 根据 code 找国家中文名
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50],
+  itemCount: 0,
+  onChange: (page) => {
+    query.page = page
+    pagination.page = page
+    fetchList()
+  },
+  onUpdatePageSize: (pageSize) => {
+    query.size = pageSize
+    pagination.pageSize = pageSize
+    query.page = 1
+    pagination.page = 1
+    fetchList()
+  }
+})
+
 function getCountryName(code) {
   const c = countries.value.find(c => c.code === code)
   return c ? c.nameCn : code
 }
 
-// 配置状态图标渲染
 function renderConfigStatus(configured, label) {
   return h(NTooltip, null, {
     trigger: () => h(NIcon, {
-      size: 16,
-      color: configured ? '#18a058' : '#ccc',
-      style: 'cursor: default'
+      size: 18,
+      color: configured ? '#18a058' : '#faad14',
+      style: 'cursor: help'
     }, { default: () => h(configured ? CheckmarkCircleOutline : AlertCircleOutline) }),
     default: () => configured ? `已配置${label}` : `未配置${label}`
   })
 }
 
 const columns = [
-  { title: 'ID', key: 'id', width: 60 },
-  { title: '模板名称', key: 'templateName', minWidth: 120 },
-  { title: '版本', key: 'version', width: 70 },
+  { title: 'ID', key: 'id', width: 80, align: 'center' },
+  { title: '模板名称', key: 'templateName', minWidth: 150 },
+  { title: '版本', key: 'version', width: 80, align: 'center' },
   {
     title: '国家',
     key: 'countryCode',
-    width: 90,
-    render: (row) => getCountryName(row.countryCode)
+    width: 100,
+    render: (row) => h(NTag, { bordered: false, type: 'info' }, { default: () => getCountryName(row.countryCode) })
   },
   {
     title: '服务类目',
     key: 'serviceCodeL3',
-    minWidth: 120,
+    minWidth: 150,
     render: (row) => getServiceName(row.serviceCodeL3)
   },
   {
-    title: '配置状态',
+    title: '配置',
     key: 'configStatus',
-    width: 90,
+    width: 100,
+    align: 'center',
     render: (row) => {
       const hasForm = row.jsonSchema && row.jsonSchema !== '{}' && row.jsonSchema !== 'null'
       const hasWorkflow = row.workflowConfig != null
-      return h(NSpace, { size: 6, wrap: false }, {
+      return h(NSpace, { size: 12, justify: 'center' }, {
         default: () => [
           renderConfigStatus(hasForm, '表单'),
           renderConfigStatus(hasWorkflow, '流程')
@@ -169,40 +182,56 @@ const columns = [
   {
     title: '状态',
     key: 'status',
-    width: 70,
+    width: 100,
     render: (row) => h(NTag, {
-      type: row.status === 1 ? 'success' : 'default',
-      size: 'small'
+      type: row.status === 1 ? 'success' : 'warning',
+      round: true,
+      bordered: false
     }, { default: () => row.status === 1 ? '已发布' : '草稿' })
   },
   {
     title: '操作',
     key: 'actions',
-    width: 260,
-    render: (row) => h(NSpace, { wrap: false }, {
+    width: 380,
+    fixed: 'right',
+    render: (row) => h(NSpace, { size: 'small', wrap: false }, {
       default: () => [
         h(NButton, {
           size: 'small',
-          quaternary: true,
+          secondary: true,
+          type: 'primary',
           onClick: () => goDesigner(row.id)
-        }, { default: () => '表单配置' }),
+        }, { 
+          default: () => '表单',
+          icon: () => h(NIcon, null, { default: () => h(CreateOutline) })
+        }),
         h(NButton, {
           size: 'small',
-          quaternary: true,
+          secondary: true,
+          type: 'info',
           onClick: () => goWorkflow(row.id)
-        }, { default: () => '流程配置' }),
+        }, { 
+          default: () => '流程',
+          icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) })
+        }),
         row.status === 0 ? h(NButton, {
           size: 'small',
-          quaternary: true,
+          secondary: true,
           type: 'success',
           onClick: () => handlePublish(row.id)
-        }, { default: () => '发布' }) : null,
+        }, { 
+          default: () => '发布',
+          icon: () => h(NIcon, null, { default: () => h(CloudUploadOutline) })
+        }) : null,
         h(NButton, {
           size: 'small',
           quaternary: true,
           type: 'error',
           onClick: () => confirmDelete(row)
-        }, { default: () => '删除' })
+        }, { 
+          default: () => '删除',
+          icon: () => h(NIcon, null, { default: () => h(TrashOutline) })
+        })
       ]
     })
   }
@@ -213,10 +242,18 @@ async function fetchList() {
   try {
     const res = await listTemplates(query)
     list.value = res.data.records
-    total.value = res.data.total
+    pagination.itemCount = res.data.total
   } finally {
     loading.value = false
   }
+}
+
+function resetQuery() {
+  query.countryCode = null
+  query.serviceCodeL3 = ''
+  query.page = 1
+  pagination.page = 1
+  fetchList()
 }
 
 async function fetchCountries() {
@@ -245,8 +282,8 @@ async function handlePublish(id) {
 function confirmDelete(row) {
   dialog.warning({
     title: '删除确认',
-    content: '确认删除该模板？',
-    positiveText: '确认',
+    content: `确认删除模板 "${row.templateName}" 吗？此操作不可撤销。`,
+    positiveText: '确认删除',
     negativeText: '取消',
     onPositiveClick: async () => {
       await deleteTemplate(row.id)
@@ -257,19 +294,13 @@ function confirmDelete(row) {
 }
 
 onMounted(() => {
-  fetchList()
   fetchCountries()
-})
-
-// 从子页面返回时刷新列表
-watch(() => route.path, (newPath) => {
-  if (newPath === '/template') {
-    fetchList()
-  }
+  fetchList()
 })
 </script>
 
 <style scoped>
-.page { display: flex; flex-direction: column; gap: 16px; }
-.page-toolbar { display: flex; justify-content: space-between; align-items: center; }
+.page-container {
+  width: 100%;
+}
 </style>
