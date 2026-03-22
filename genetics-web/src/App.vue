@@ -108,7 +108,8 @@ import {
   SettingsOutline,
   NotificationsOutline,
   PersonOutline,
-  LogOutOutline
+  LogOutOutline,
+  FlashOutline
 } from '@vicons/ionicons5'
 import { themeOverrides } from './theme'
 
@@ -137,14 +138,33 @@ const menuOptions = [
     icon: renderIcon(DocumentTextOutline)
   },
   {
-    label: '模板管理',
-    key: 'template',
-    icon: renderIcon(GridOutline)
+    label: '流程管理',
+    key: 'workflow',
+    icon: renderIcon(GridOutline),
+    children: [
+      {
+        label: '服务单模板',
+        key: 'template',
+        icon: renderIcon(GridOutline)
+      },
+      {
+        label: '动作管理',
+        key: 'workflow/action',
+        icon: renderIcon(FlashOutline)
+      }
+    ]
   },
   {
-    label: '控件管理',
-    key: 'control',
-    icon: renderIcon(SettingsOutline)
+    label: '系统配置',
+    key: 'system',
+    icon: renderIcon(SettingsOutline),
+    children: [
+      {
+        label: '控件管理',
+        key: 'control',
+        icon: renderIcon(SettingsOutline)
+      }
+    ]
   }
 ]
 

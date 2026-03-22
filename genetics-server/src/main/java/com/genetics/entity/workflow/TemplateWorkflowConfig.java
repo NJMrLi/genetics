@@ -93,6 +93,7 @@ public class TemplateWorkflowConfig {
         transition.setActionName(actionName);
         transition.setNeedRemark(needRemark);
         transition.setCondition(condition);
+        transition.setFormSchema(null); // 默认无动作表单
         return transition;
     }
 }

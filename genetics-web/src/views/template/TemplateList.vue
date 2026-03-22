@@ -198,17 +198,8 @@ const columns = [
       default: () => [
         h(NButton, {
           size: 'small',
-          secondary: true,
+          quaternary: true,
           type: 'primary',
-          onClick: () => goDesigner(row.id)
-        }, { 
-          default: () => '表单',
-          icon: () => h(NIcon, null, { default: () => h(CreateOutline) })
-        }),
-        h(NButton, {
-          size: 'small',
-          secondary: true,
-          type: 'info',
           onClick: () => goWorkflow(row.id)
         }, { 
           default: () => '流程',

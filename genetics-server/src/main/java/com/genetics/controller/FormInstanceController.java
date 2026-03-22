@@ -5,6 +5,7 @@ import com.genetics.common.Result;
 import com.genetics.dto.FormInstanceCreateDTO;
 import com.genetics.dto.FormInstanceDetailVO;
 import com.genetics.dto.FormInstanceSaveDTO;
+import com.genetics.dto.WorkflowTransitionRequestDTO;
 import com.genetics.entity.FormInstance;
 import com.genetics.entity.workflow.WorkflowTransition;
 import com.genetics.enums.ServeState;
@@ -117,9 +118,8 @@ public class FormInstanceController {
      */
     @PostMapping("/{id}/transition")
     public Result<Void> executeTransition(@PathVariable Long id,
-                                          @RequestParam String action,
-                                          @RequestParam(required = false) String remark) {
-        formInstanceService.executeTransition(id, action, remark);
+                                          @RequestBody WorkflowTransitionRequestDTO request) {
+        formInstanceService.executeTransition(id, request);
         return Result.success();
     }
 

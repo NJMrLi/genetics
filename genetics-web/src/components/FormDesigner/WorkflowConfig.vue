@@ -122,6 +122,13 @@
             <n-form-item label="需要填写备注">
               <n-switch v-model:value="selectedEdge.data.needRemark" size="small" />
             </n-form-item>
+            <n-form-item label="关联业务表单">
+              <n-button size="small" secondary block type="primary" @click="openFormDesigner">
+                <template #icon><n-icon><CreateOutline /></n-icon></template>
+                {{ selectedEdge.data.formSchema ? '编辑表单' : '配置表单' }}
+              </n-button>
+              <div v-if="selectedEdge.data.formSchema" class="form-tag">已配置</div>
+            </n-form-item>
           </n-form>
           <n-button type="error" size="small" block style="margin-top:16px" ghost @click="removeSelectedEdge">
             <template #icon><n-icon><TrashOutline /></n-icon></template>
@@ -168,10 +175,20 @@
       <pre class="json-preview">{{ JSON.stringify(config, null, 2) }}</pre>
     </n-scrollbar>
   </n-modal>
+
+  <!-- 动作表单设计器弹窗 -->
+  <workflow-form-modal
+    v-if="selectedEdge"
+    v-model:show="showFormModal"
+    :action-name="selectedEdge.data.actionName"
+    :initial-schema="selectedEdge.data.formSchema"
+    @confirm="handleFormConfirm"
+  />
 </template>
 
 <script setup>
 import { ref, watch, nextTick, onMounted } from 'vue'
+import { listWorkflowActions } from '@/api/workflowAction'
 import { VueFlow, useVueFlow, Position, MarkerType } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -188,8 +205,9 @@ import {
 import {
   InformationCircleOutline, GitNetworkOutline,
   TrashOutline, GitMergeOutline, SquareOutline,
-  CodeSlashOutline
+  CodeSlashOutline, CreateOutline
 } from '@vicons/ionicons5'
+import WorkflowFormModal from './WorkflowFormModal.vue'
 
 const props = defineProps({ modelValue: { type: Object, default: null } })
 const emit = defineEmits(['update:modelValue'])
@@ -216,17 +234,7 @@ const conditionOptions = [
   { label: 'EPR', value: 'EPR' }
 ]
 
-const presetActions = [
-  { label: '提交', value: 'submit' },
-  { label: '审核通过', value: 'auditPass' },
-  { label: '审核驳回', value: 'auditReject', needRemark: true },
-  { label: '重新提交', value: 'resubmit' },
-  { label: '递交当地同事', value: 'submitLocal' },
-  { label: '递交税局', value: 'submitTax' },
-  { label: '递交组织', value: 'submitOrg' },
-  { label: '完成', value: 'complete' },
-  { label: '终止', value: 'terminate' }
-]
+const presetActions = ref([])
 
 const stateColors = {
   10: '#18a058', 20: '#f0a020', 30: '#2080f0',
@@ -281,7 +289,8 @@ watch(edges, (val) => {
     action: e.data?.action || '',
     actionName: e.data?.actionName || '',
     needRemark: e.data?.needRemark || false,
-    condition: e.data?.condition || null
+    condition: e.data?.condition || null,
+    formSchema: e.data?.formSchema || null
   }))
 }, { deep: true })
 
@@ -291,7 +300,15 @@ watch(config, (val) => {
 }, { deep: true })
 
 // -------- 从外部 modelValue 初始化（挂载后执行） --------
-onMounted(() => {
+onMounted(async () => {
+  const res = await listWorkflowActions()
+  presetActions.value = (res.data || []).map(a => ({
+    label: a.actionName,
+    value: a.actionCode,
+    needRemark: a.needRemark,
+    icon: a.icon
+  }))
+
   nextTick(() => {
     if (props.modelValue?.transitions?.length) {
       config.value = JSON.parse(JSON.stringify(props.modelValue))
@@ -326,7 +343,7 @@ function applyToCanvas(cfg) {
       target: `node-${t.to}`,
       label: t.actionName || '',
       ...defaultEdgeOptions,
-      data: { from: t.from, to: t.to, action: t.action, actionName: t.actionName, needRemark: t.needRemark, condition: t.condition }
+      data: { from: t.from, to: t.to, action: t.action, actionName: t.actionName, needRemark: t.needRemark, condition: t.condition, formSchema: t.formSchema }
     }))
 
   const layoutedNodes = getLayoutedNodes(rawNodes, rawEdges)
@@ -384,8 +401,24 @@ function onConnect(params) {
     target: params.target,
     label: '请选择操作',
     ...defaultEdgeOptions,
-    data: { from: fromState, to: toState, action: null, actionName: '', needRemark: false, condition: null }
+    data: { from: fromState, to: toState, action: null, actionName: '', needRemark: false, condition: null, formSchema: null }
   }]
+}
+
+// -------- 动作表单配置 --------
+const showFormModal = ref(false)
+function openFormDesigner() {
+  if (selectedEdge.value) {
+    showFormModal.value = true
+  }
+}
+
+function handleFormConfirm(schema) {
+  const edge = edges.value.find(e => e.id === selectedEdge.value?.id)
+  if (edge) {
+    edge.data.formSchema = schema
+    message.success('表单配置已更新')
+  }
 }
 
 // -------- 点击事件 --------
@@ -404,7 +437,7 @@ function onPaneClick() {
 
 function onActionSelect(val) {
   const edge = edges.value.find(e => e.id === selectedEdge.value?.id)
-  const action = presetActions.find(a => a.value === val)
+  const action = presetActions.value.find(a => a.value === val)
   if (edge && action) {
     edge.data.actionName = action.label
     edge.label = action.label
@@ -706,6 +739,12 @@ function loadEprConfig() {
 }
 .panel-form :deep(.n-form-item) {
   margin-bottom: 12px;
+}
+.form-tag {
+  font-size: 11px;
+  color: #18a058;
+  margin-top: 4px;
+  text-align: center;
 }
 .panel-empty {
   display: flex;

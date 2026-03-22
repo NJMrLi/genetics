@@ -46,6 +46,12 @@ const routes = [
     name: 'InstanceForm',
     component: () => import('@/views/instance/InstanceForm.vue'),
     meta: { title: '填写服务单' }
+  },
+  {
+    path: '/workflow/action',
+    name: 'ActionList',
+    component: () => import('@/views/workflow/ActionList.vue'),
+    meta: { title: '动作管理' }
   }
 ]
 

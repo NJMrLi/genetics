@@ -32,80 +32,98 @@
       </div>
     </div>
 
-    <n-grid :cols="24" :x-gap="24" :y-gap="24">
-      <!-- 左侧：动态表单 -->
-      <n-gi :span="16">
-        <n-card title="表单详情" :bordered="false" class="form-card">
-          <template #header-extra>
-            <n-text depth="3">版本: {{ detail?.version }}</n-text>
-          </template>
-          <dynamic-form
-            v-if="detail?.jsonSchema"
-            ref="dynamicFormRef"
-            :schema="detail.jsonSchema"
-            :control-details="detail.controlDetails"
-            v-model="formData"
-            :readonly="detail.orderStatusId !== 10 && detail.orderStatusId !== 50"
-          />
-          <n-empty v-else-if="detail" description="该模板暂无表单配置" />
-        </n-card>
-      </n-gi>
+    <n-grid :cols="24" :x-gap="16">
+      <n-gi :span="18">
+        <n-space vertical :size="16">
+          <n-alert title="信息汇总" type="info" ghost>
+            这里展示了服务单在整个生命周期中已填写的全部数据。
+          </n-alert>
 
-      <!-- 右侧：侧边栏信息 -->
-      <n-gi :span="8">
-        <n-space vertical :size="24">
-          <n-card title="基础信息" :bordered="false">
-            <n-descriptions label-placement="left" :column="1" bordered label-style="width: 100px">
-              <n-descriptions-item label="国家">
-                <n-tag type="info" :bordered="false" size="small">{{ detail?.countryCode }}</n-tag>
-              </n-descriptions-item>
-              <n-descriptions-item label="服务类型">
-                {{ detail?.serviceCodeL3 }}
-              </n-descriptions-item>
-              <n-descriptions-item label="创建时间">
-                {{ detail?.createTime }}
+          <!-- 动态表单改为预览模式（信息汇总） -->
+          <n-card title="单据数据" :bordered="false">
+            <template #header-extra>
+              <n-tag type="info" size="small">全流程汇总</n-tag>
+            </template>
+            <n-empty v-if="!Object.keys(formData).length" description="暂无填写数据" />
+            <n-descriptions v-else label-placement="left" :column="2" bordered>
+              <n-descriptions-item v-for="(val, key) in formData" :key="key" :label="key">
+                {{ val }}
               </n-descriptions-item>
             </n-descriptions>
           </n-card>
 
-          <!-- 服务单附加信息卡 -->
-          <n-card v-if="detail" title="服务周期" :bordered="false">
-            <n-form :model="metaForm" label-placement="top">
-              <n-grid :cols="1" :y-gap="12">
-                <n-gi>
-                  <n-form-item label="服务开始时间">
-                    <n-date-picker
-                      v-model:value="metaForm.serviceStartTime"
-                      type="datetime"
-                      placeholder="选择开始时间"
-                      :disabled="detail.status !== 0"
-                      style="width: 100%"
-                    />
-                  </n-form-item>
-                </n-gi>
-                <n-gi>
-                  <n-form-item label="服务结束时间">
-                    <n-date-picker
-                      v-model:value="metaForm.serviceEndTime"
-                      type="datetime"
-                      placeholder="选择结束时间"
-                      :disabled="detail.status !== 0"
-                      style="width: 100%"
-                    />
-                  </n-form-item>
-                </n-gi>
-              </n-grid>
-            </n-form>
-          </n-card>
-
-          <n-card v-if="submitResult" title="转换结果 (Debug)" :bordered="false">
-            <n-scrollbar style="max-height: 300px">
-              <n-code :code="JSON.stringify(submitResult, null, 2)" language="json" word-wrap />
-            </n-scrollbar>
+          <!-- 历史备注 -->
+          <n-card title="流程历史" :bordered="false">
+             <!-- TODO: 这里可以展示操作记录 -->
+             <n-text depth="3">暂无操作历史记录</n-text>
           </n-card>
         </n-space>
       </n-gi>
+
+      <n-gi :span="6">
+        <n-card title="操作面板" :bordered="false" class="sticky-card">
+          <n-space vertical>
+            <div class="status-info">
+              <n-text depth="3">当前状态</n-text>
+              <div class="status-val">{{ detail?.orderStatusName || '未知' }}</div>
+            </div>
+            
+            <n-divider />
+
+            <n-space vertical v-if="availableActions.length">
+              <n-button
+                v-for="action in availableActions"
+                :key="action.action"
+                block
+                :type="getActionType(action.action)"
+                @click="handleWorkflowAction(action)"
+              >
+                <template #icon>
+                  <n-icon><FlashOutline /></n-icon>
+                </template>
+                {{ action.actionName }}
+              </n-button>
+            </n-space>
+            <n-empty v-else description="当前无可执行操作" />
+          </n-space>
+        </n-card>
+      </n-gi>
     </n-grid>
+
+    <!-- 动作执行弹窗（含备注和动态表单） -->
+    <n-modal
+      v-model:show="showActionModal"
+      preset="card"
+      :title="currentAction?.actionName"
+      style="width: 600px"
+    >
+      <n-space vertical :size="20">
+        <!-- 动态表单内容 -->
+        <div v-if="currentAction?.formSchema">
+          <dynamic-form
+            :schema="currentAction.formSchema"
+            v-model="actionFormData"
+          />
+        </div>
+
+        <!-- 备注框 -->
+        <n-form-item label="原因/备注" v-if="currentAction?.needRemark || currentAction?.formSchema">
+          <n-input
+            v-model:value="actionRemark"
+            type="textarea"
+            placeholder="请输入备注说明..."
+            :rows="3"
+          />
+        </n-form-item>
+      </n-space>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showActionModal = false">取消</n-button>
+          <n-button type="primary" @click="handleActionSubmit">确认执行</n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -131,6 +149,7 @@ import {
   NSpace,
   NIcon,
   NScrollbar,
+  NModal,
   useMessage,
   useDialog
 } from 'naive-ui'
@@ -170,6 +189,12 @@ const orderStatusMap = ref({})
 
 // 工作流可用操作
 const availableActions = ref([])
+
+// 动作表单相关
+const showActionModal = ref(false)
+const currentAction = ref(null)
+const actionFormData = ref({})
+const actionRemark = ref('')
 
 // 服务信息表单
 const metaForm = reactive({
@@ -227,9 +252,17 @@ async function loadAvailableActions() {
   }
 }
 
-function handleWorkflowAction(action) {
-  const remark = ref('')
-  if (action.needRemark) {
+async function handleWorkflowAction(action) {
+  currentAction.value = action
+  actionRemark.value = ''
+  actionFormData.value = {}
+  
+  if (action.formSchema) {
+    // 如果有配置表单，打开弹窗
+    showActionModal.value = true
+  } else if (action.needRemark) {
+    // 仅需要备注
+    const remark = ref('')
     dialog.create({
       title: action.actionName,
       content: () => h(NInput, {
@@ -245,6 +278,7 @@ function handleWorkflowAction(action) {
       }
     })
   } else {
+    // 直接确认
     dialog.create({
       title: '确认操作',
       content: `确定要执行「${action.actionName}」吗？`,
@@ -257,9 +291,18 @@ function handleWorkflowAction(action) {
   }
 }
 
-async function doTransition(action, remark) {
+async function handleActionSubmit() {
+  await doTransition(currentAction.value.action, actionRemark.value, actionFormData.value)
+  showActionModal.value = false
+}
+
+async function doTransition(action, remark, extraData = null) {
   try {
-    await executeTransition(instanceId, action, remark)
+    await executeTransition(instanceId, {
+      action,
+      remark,
+      actionFormData: extraData
+    })
     message.success('操作成功')
     await fetchDetail()
   } catch (error) {
@@ -325,6 +368,13 @@ function goBack() {
   router.push('/instance')
 }
 
+function getActionType(action) {
+  if (action === 'auditReject' || action === 'terminate') return 'error'
+  if (action === 'auditPass' || action === 'complete') return 'success'
+  if (action.includes('submit')) return 'primary'
+  return 'info'
+}
+
 onMounted(() => {
   loadOrderStatusOptions()
   fetchDetail()
@@ -332,30 +382,42 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.page-container {
+  padding: 24px;
+}
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
 }
-
 .header-left {
   display: flex;
   align-items: center;
   gap: 16px;
 }
-
 .title {
   font-size: 20px;
   font-weight: 600;
   display: flex;
   align-items: center;
 }
-
+.sticky-card {
+  position: sticky;
+  top: 24px;
+}
+.status-info {
+  text-align: center;
+}
+.status-val {
+  font-size: 18px;
+  font-weight: 600;
+  color: #18a058;
+  margin-top: 4px;
+}
 .form-card {
   height: 100%;
 }
-
 :deep(.n-descriptions-table-header) {
   width: 100px;
 }

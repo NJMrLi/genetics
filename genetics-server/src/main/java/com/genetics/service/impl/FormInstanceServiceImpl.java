@@ -10,6 +10,7 @@ import com.genetics.dto.FormInstanceCreateDTO;
 import com.genetics.dto.FormInstanceDetailVO;
 import com.genetics.dto.FormInstanceSaveDTO;
 import com.genetics.dto.FormTemplateDetailVO;
+import com.genetics.dto.WorkflowTransitionRequestDTO;
 import com.genetics.entity.FormInstance;
 import com.genetics.entity.FormTemplate;
 import com.genetics.enums.InstanceStatus;
@@ -164,12 +165,24 @@ public class FormInstanceServiceImpl implements FormInstanceService {
     }
 
     @Override
-    public void executeTransition(Long id, String action, String remark) {
+    public void executeTransition(Long id, WorkflowTransitionRequestDTO request) {
         FormInstance instance = requireExist(id);
+        String action = request.getAction();
         
         // 使用工作流服务验证并执行状态流转
         Integer newStatus = templateWorkflowService.doInstanceTransition(instance, action);
         
+        // 动作相关的表单数据合并 (如果有)
+        if (request.getActionFormData() != null && !request.getActionFormData().isEmpty()) {
+            Map<String, Object> currentData = parseFormData(instance.getFormData());
+            currentData.putAll(request.getActionFormData());
+            try {
+                instance.setFormData(objectMapper.writeValueAsString(currentData));
+            } catch (JsonProcessingException e) {
+                log.error("合并表单数据失败", e);
+            }
+        }
+
         // 更新状态
         instance.setOrderStatusId(newStatus);
         

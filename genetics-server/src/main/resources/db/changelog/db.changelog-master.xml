@@ -50,4 +50,13 @@
                  stripComments="true"/>
     </changeSet>
 
+    <!-- 添加工作流动作定义表 -->
+    <changeSet id="006-add-workflow-action" author="genetics">
+        <sqlFile path="sql/006-add-workflow-action.sql"
+                 relativeToChangelogFile="true"
+                 encoding="UTF-8"
+                 splitStatements="true"
+                 stripComments="true"/>
+    </changeSet>
+
 </databaseChangeLog>

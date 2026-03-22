@@ -50,7 +50,16 @@ public class TemplateWorkflowServiceImpl implements TemplateWorkflowService {
                 if (transition.getFrom().equals(currentStatus)) {
                     // 检查条件（简化：condition为null或匹配serviceType）
                     if (matchCondition(transition.getCondition(), context)) {
-                        actions.add(transition);
+                        // 克隆一个 transition 避免直接修改缓存中的对象（如果需要动态处理）
+                        WorkflowTransition action = new WorkflowTransition();
+                        action.setFrom(transition.getFrom());
+                        action.setTo(transition.getTo());
+                        action.setAction(transition.getAction());
+                        action.setActionName(transition.getActionName());
+                        action.setNeedRemark(transition.getNeedRemark());
+                        action.setCondition(transition.getCondition());
+                        action.setFormSchema(transition.getFormSchema());
+                        actions.add(action);
                     }
                 }
             }
@@ -116,7 +125,16 @@ public class TemplateWorkflowServiceImpl implements TemplateWorkflowService {
         if (config.getTransitions() != null) {
             for (WorkflowTransition transition : config.getTransitions()) {
                 if (transition.getFrom().equals(currentStatus) && transition.getAction().equals(action)) {
-                    return transition;
+                    // 克隆
+                    WorkflowTransition t = new WorkflowTransition();
+                    t.setFrom(transition.getFrom());
+                    t.setTo(transition.getTo());
+                    t.setAction(transition.getAction());
+                    t.setActionName(transition.getActionName());
+                    t.setNeedRemark(transition.getNeedRemark());
+                    t.setCondition(transition.getCondition());
+                    t.setFormSchema(transition.getFormSchema());
+                    return t;
                 }
             }
         }

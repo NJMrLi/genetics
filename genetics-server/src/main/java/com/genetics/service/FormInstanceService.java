@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.genetics.dto.FormInstanceCreateDTO;
 import com.genetics.dto.FormInstanceDetailVO;
 import com.genetics.dto.FormInstanceSaveDTO;
+import com.genetics.dto.WorkflowTransitionRequestDTO;
 import com.genetics.entity.FormInstance;
 
 import java.util.Map;
@@ -20,10 +21,9 @@ public interface FormInstanceService {
     /**
      * 执行状态流转
      * @param id 实例ID
-     * @param action 操作编码
-     * @param remark 备注/原因
+     * @param request 执行流转的请求数据 (action, remark, actionFormData)
      */
-    void executeTransition(Long id, String action, String remark);
+    void executeTransition(Long id, WorkflowTransitionRequestDTO request);
 
     Map<String, Object> submit(Long id);
 
