@@ -6,10 +6,7 @@ import { ref, computed } from 'vue'
  * 管理画板中的行列结构和控件放置
  */
 export const useFormDesignerStore = defineStore('formDesigner', () => {
-  // 画板列数
-  const columns = ref(2)
-
-  // 行数据：[{ rowIndex, cells: [{ colIndex, colSpan, controlId, controlKey, controlType, label }] }]
+  // 行数据：[{ rowIndex, columns, cells: [{ colIndex, colSpan, controlId, controlKey, controlType, label }] }]
   const rows = ref([])
 
   // 模板基本信息
@@ -27,14 +24,27 @@ export const useFormDesignerStore = defineStore('formDesigner', () => {
   // 生成 JSON Schema
   const jsonSchema = computed(() => ({
     layout: 'grid',
-    columns: columns.value,
     rows: rows.value
   }))
 
   // 添加一行
   function addRow() {
     const rowIndex = rows.value.length
-    rows.value.push({ rowIndex, cells: [] })
+    rows.value.push({ rowIndex, columns: 2, cells: [] })
+  }
+
+  // 修改行布局列数
+  function setRowColumns(rowIndex, cols) {
+    const row = rows.value[rowIndex]
+    if (row) {
+      row.columns = cols
+      // 校验该行下所有 cell 的 colSpan 不能超过新的列数
+      row.cells.forEach(cell => {
+        if (cell.colSpan > cols) {
+          cell.colSpan = cols
+        }
+      })
+    }
   }
 
   // 删除一行
@@ -97,14 +107,15 @@ export const useFormDesignerStore = defineStore('formDesigner', () => {
       status: templateDetail.status
     }
     if (schema) {
-      columns.value = schema.columns || 2
-      rows.value = schema.rows || []
+      rows.value = (schema.rows || []).map(r => ({
+        ...r,
+        columns: r.columns || schema.columns || 2 // 兼容旧版本数据
+      }))
     }
   }
 
   // 清空画板
   function reset() {
-    columns.value = 2
     rows.value = []
     templateInfo.value = {
       templateName: '',

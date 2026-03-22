@@ -196,8 +196,10 @@ async function handleSave() {
   try {
     const res = await createTemplate(form.value)
     message.success('创建成功')
-    // 跳转到表单配置页面
-    router.push(`/template/form-designer/${res.data.id}`)
+    // 跳转到流程配置页面，在流程中为各个动作配置表单
+    router.push(`/template/workflow-designer/${res.data.id}`)
+  } catch (err) {
+    message.error('保存失败: ' + (err.message || '未知错误'))
   } finally {
     saving.value = false
   }

@@ -2,14 +2,14 @@ import request from './request'
 
 export function listWorkflowActions() {
   return request({
-    url: '/api/workflow/actions/list',
+    url: '/workflow/actions/list',
     method: 'get'
   })
 }
 
 export function saveWorkflowAction(data) {
   return request({
-    url: '/api/workflow/actions',
+    url: '/workflow/actions',
     method: 'post',
     data
   })
@@ -17,7 +17,7 @@ export function saveWorkflowAction(data) {
 
 export function deleteWorkflowAction(id) {
   return request({
-    url: `/api/workflow/actions/${id}`,
+    url: `/workflow/actions/${id}`,
     method: 'delete'
   })
 }

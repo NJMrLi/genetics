@@ -169,7 +169,16 @@ const columns = [
     width: 100,
     align: 'center',
     render: (row) => {
-      const hasForm = row.jsonSchema && row.jsonSchema !== '{}' && row.jsonSchema !== 'null'
+      // 在动作驱动模式下，检查是否有任何动作配置了表单
+      let hasForm = false
+      if (row.workflowConfig) {
+        try {
+          const config = typeof row.workflowConfig === 'string' ? JSON.parse(row.workflowConfig) : row.workflowConfig
+          hasForm = config.transitions?.some(t => t.formSchema && t.formSchema !== '{}')
+        } catch (e) {
+          hasForm = false
+        }
+      }
       const hasWorkflow = row.workflowConfig != null
       return h(NSpace, { size: 12, justify: 'center' }, {
         default: () => [
@@ -254,10 +263,6 @@ async function fetchCountries() {
 
 function goCreate() {
   router.push('/template/create')
-}
-
-function goDesigner(id) {
-  router.push(`/template/form-designer/${id}`)
 }
 
 function goWorkflow(id) {

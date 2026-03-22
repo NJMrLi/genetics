@@ -2,93 +2,98 @@
   <div class="canvas">
     <!-- 画板工具栏 -->
     <div class="canvas-toolbar">
-      <span class="canvas-title">画板</span>
-      <n-space>
-        <n-select
-          v-model:value="store.columns"
-          :options="columnOptions"
-          style="width: 120px"
-          @update:value="handleColumnsChange"
-        />
-        <n-button type="primary" size="small" @click="store.addRow">
-          <template #icon><n-icon><AddOutline /></n-icon></template>
-          添加行
-        </n-button>
-      </n-space>
+      <span class="canvas-title">画板布局</span>
+      <n-button type="primary" size="small" @click="store.addRow">
+        <template #icon><n-icon><AddOutline /></n-icon></template>
+        添加行
+      </n-button>
     </div>
 
     <!-- 画板内容 -->
     <div class="canvas-body">
-      <n-empty v-if="!store.rows.length" description="拖拽左侧控件到此处，或点击「添加行」" />
+      <n-scrollbar trigger="hover">
+        <div class="canvas-content-inner">
+          <n-empty v-if="!store.rows.length" description="拖拽左侧控件到此处，或点击「添加行」" />
 
-      <div
-        v-for="(row, rowIndex) in store.rows"
-        :key="rowIndex"
-        class="canvas-row"
-      >
-        <!-- 行工具栏 -->
-        <div class="row-toolbar">
-          <span class="row-label">第 {{ rowIndex + 1 }} 行</span>
-          <n-button quaternary size="small" type="error" @click="store.removeRow(rowIndex)">
-            <template #icon><n-icon><TrashOutline /></n-icon></template>
-          </n-button>
-        </div>
+          <div
+            v-for="(row, rowIndex) in store.rows"
+            :key="rowIndex"
+            class="canvas-row"
+          >
+            <!-- 行工具栏 -->
+            <div class="row-toolbar">
+              <n-space align="center">
+                <span class="row-label">第 {{ rowIndex + 1 }} 行</span>
+                <n-select
+                  v-model:value="row.columns"
+                  :options="columnOptions"
+                  size="tiny"
+                  style="width: 100px"
+                  @update:value="(val) => store.setRowColumns(rowIndex, val)"
+                />
+              </n-space>
+              <n-button quaternary size="small" type="error" @click="store.removeRow(rowIndex)">
+                <template #icon><n-icon><TrashOutline /></n-icon></template>
+              </n-button>
+            </div>
 
-        <!-- 网格拖拽区域 -->
-        <draggable
-          v-model="store.rows[rowIndex].cells"
-          :group="{ name: 'controls', pull: true, put: true }"
-          item-key="controlId"
-          class="canvas-grid"
-          :style="gridStyle"
-          @add="(e) => handleAdd(e, rowIndex)"
-        >
-          <template #item="{ element: cell, index: colIndex }">
-            <div
-              class="canvas-cell"
-              :style="{ gridColumn: `span ${cell.colSpan}` }"
-              @click="showControlDetail(cell)"
+            <!-- 网格拖拽区域 -->
+            <draggable
+              v-model="store.rows[rowIndex].cells"
+              :group="{ name: 'controls', pull: true, put: true }"
+              item-key="controlId"
+              class="canvas-grid"
+              :style="getGridStyle(row.columns)"
+              @add="(e) => handleAdd(e, rowIndex)"
             >
-              <!-- 控件卡片 -->
-              <div class="cell-card" :class="{ active: selectedCell?.controlId === cell.controlId }">
-                <div class="cell-header">
-                  <n-input
-                    v-model:value="cell.label"
-                    size="small"
-                    placeholder="标签名"
-                    class="cell-label-input"
-                    @click.stop
-                  />
-                  <n-space :size="4">
-                    <n-select
-                      v-model:value="cell.colSpan"
-                      :options="getColSpanOptions()"
-                      size="small"
-                      style="width: 80px"
-                      @update:value="store.setCellColSpan(rowIndex, colIndex, cell.colSpan)"
-                      @click.stop
-                    />
-                    <n-button quaternary size="small" type="error" @click.stop="store.removeCellFromRow(rowIndex, colIndex)">
-                      <template #icon><n-icon><CloseOutline /></n-icon></template>
-                    </n-button>
-                  </n-space>
+              <template #item="{ element: cell, index: colIndex }">
+                <div
+                  class="canvas-cell"
+                  :style="{ gridColumn: `span ${cell.colSpan}` }"
+                  @click="showControlDetail(cell, rowIndex)"
+                >
+                  <!-- 控件卡片 -->
+                  <div class="cell-card" :class="{ active: selectedCell?.controlId === cell.controlId }">
+                    <div class="cell-header">
+                      <n-input
+                        v-model:value="cell.label"
+                        size="small"
+                        placeholder="标签名"
+                        class="cell-label-input"
+                        @click.stop
+                      />
+                      <n-space :size="4">
+                        <n-select
+                          v-model:value="cell.colSpan"
+                          :options="getColSpanOptions(row.columns)"
+                          size="small"
+                          style="width: 80px"
+                          @update:value="store.setCellColSpan(rowIndex, colIndex, cell.colSpan)"
+                          @click.stop
+                        />
+                        <n-button quaternary size="small" type="error" @click.stop="store.removeCellFromRow(rowIndex, colIndex)">
+                          <template #icon><n-icon><CloseOutline /></n-icon></template>
+                        </n-button>
+                      </n-space>
+                    </div>
+                    <div class="cell-body">
+                      <n-tag :type="getTagType(cell.controlType)" size="small">{{ cell.controlType }}</n-tag>
+                      <span class="cell-key">{{ cell.controlKey }}</span>
+                    </div>
+                  </div>
                 </div>
-                <div class="cell-body">
-                  <n-tag :type="getTagType(cell.controlType)" size="small">{{ cell.controlType }}</n-tag>
-                  <span class="cell-key">{{ cell.controlKey }}</span>
-                </div>
-              </div>
-            </div>
-          </template>
+              </template>
 
-          <!-- 空行拖拽提示 -->
-          <template #footer>
-            <div v-if="!row.cells.length" class="drop-placeholder">
-              拖拽控件到此行
-            </div>
-          </template>
-        </draggable>
-      </div>
+              <!-- 空行拖拽提示 -->
+              <template #footer>
+                <div v-if="!row.cells.length" class="drop-placeholder">
+                  拖拽控件到此行
+                </div>
+              </template>
+            </draggable>
+          </div>
+        </div>
+      </n-scrollbar>
     </div>
 
     <!-- 控件详情抽屉 -->
@@ -182,22 +187,25 @@ import { listAllControls } from '@/api/formControl'
 const store = useFormDesignerStore()
 
 const columnOptions = [
-  { label: '1列布局', value: 1 },
-  { label: '2列布局', value: 2 },
-  { label: '3列布局', value: 3 },
-  { label: '4列布局', value: 4 }
+  { label: '1列', value: 1 },
+  { label: '2列', value: 2 },
+  { label: '3列', value: 3 },
+  { label: '4列', value: 4 }
 ]
 
-const gridStyle = computed(() => ({
-  display: 'grid',
-  gridTemplateColumns: `repeat(${store.columns}, 1fr)`,
-  gap: '8px',
-  minHeight: '60px'
-}))
+function getGridStyle(cols) {
+  return {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${cols || 2}, 1fr)`,
+    gap: '8px',
+    minHeight: '60px'
+  }
+}
 
 const detailDrawerVisible = ref(false)
 const selectedCell = ref(null)
 const selectedControl = ref(null)
+const selectedRowIndex = ref(null)
 const allControls = ref([])
 
 const selectOptions = computed(() => {
@@ -222,21 +230,11 @@ const uploadConfig = computed(() => {
   }
 })
 
-function getColSpanOptions() {
-  return Array.from({ length: store.columns }, (_, i) => ({
-    label: `${i + 1}/${store.columns}列`,
+function getColSpanOptions(cols) {
+  return Array.from({ length: cols || 2 }, (_, i) => ({
+    label: `${i + 1}/${cols || 2}列`,
     value: i + 1
   }))
-}
-
-function handleColumnsChange() {
-  store.rows.forEach(row => {
-    row.cells.forEach(cell => {
-      if (cell.colSpan > store.columns) {
-        cell.colSpan = store.columns
-      }
-    })
-  })
 }
 
 function handleAdd(event, rowIndex) {
@@ -262,8 +260,9 @@ function getTagType(type) {
   return map[type] || 'default'
 }
 
-async function showControlDetail(cell) {
+async function showControlDetail(cell, rowIndex) {
   selectedCell.value = cell
+  selectedRowIndex.value = rowIndex
   
   // 如果还没有加载过所有控件，先加载
   if (allControls.value.length === 0) {
@@ -306,7 +305,11 @@ async function showControlDetail(cell) {
 
 .canvas-body {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
+  background: #f8f8f8;
+}
+
+.canvas-content-inner {
   padding: 16px;
   display: flex;
   flex-direction: column;

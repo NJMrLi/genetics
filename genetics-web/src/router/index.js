@@ -24,12 +24,6 @@ const routes = [
     meta: { title: '新建模板' }
   },
   {
-    path: '/template/form-designer/:id',
-    name: 'FormDesigner',
-    component: () => import('@/views/template/TemplateDesigner.vue'),
-    meta: { title: '表单配置' }
-  },
-  {
     path: '/template/workflow-designer/:id',
     name: 'WorkflowDesigner',
     component: () => import('@/views/template/WorkflowDesigner.vue'),

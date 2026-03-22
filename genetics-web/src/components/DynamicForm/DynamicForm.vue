@@ -4,7 +4,7 @@
       v-for="row in schema.rows"
       :key="row.rowIndex"
       class="form-row"
-      :style="gridStyle"
+      :style="getRowStyle(row)"
     >
       <div
         v-for="cell in row.cells"
@@ -78,12 +78,14 @@ const formData = computed({
   set: val => emit('update:modelValue', val)
 })
 
-// 网格样式
-const gridStyle = computed(() => ({
-  display: 'grid',
-  gridTemplateColumns: `repeat(${props.schema?.columns || 2}, 1fr)`,
-  gap: '0 16px'
-}))
+// 获取行样式
+function getRowStyle(row) {
+  return {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${row.columns || props.schema?.columns || 2}, 1fr)`,
+    gap: '0 16px'
+  }
+}
 
 // 根据控件配置构建校验规则
 function buildRules(controlId) {
