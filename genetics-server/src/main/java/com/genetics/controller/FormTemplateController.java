@@ -40,6 +40,12 @@ public class FormTemplateController {
         return Result.success();
     }
 
+    @PostMapping("/{id}/upgrade")
+    public Result<Map<String, Long>> upgrade(@PathVariable Long id) {
+        Long newId = formTemplateService.upgrade(id);
+        return Result.success(Map.of("id", newId));
+    }
+
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         formTemplateService.delete(id);
@@ -56,7 +62,9 @@ public class FormTemplateController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String countryCode,
-            @RequestParam(required = false) String serviceCodeL3) {
-        return Result.success(PageResult.of(formTemplateService.page(page, size, countryCode, serviceCodeL3)));
+            @RequestParam(required = false) String serviceCodeL3,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false, defaultValue = "false") Boolean latestOnly) {
+        return Result.success(PageResult.of(formTemplateService.page(page, size, countryCode, serviceCodeL3, status, latestOnly)));
     }
 }

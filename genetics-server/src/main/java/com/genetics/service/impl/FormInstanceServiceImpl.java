@@ -239,8 +239,13 @@ public class FormInstanceServiceImpl implements FormInstanceService {
         vo.setServiceCodeL1(instance.getServiceCodeL1());
         vo.setServiceCodeL2(instance.getServiceCodeL2());
         vo.setServiceCodeL3(instance.getServiceCodeL3());
-        vo.setJsonSchema(templateDetail.getJsonSchema());
-        vo.setControlDetails(templateDetail.getControlDetails());
+        
+        if (templateDetail != null) {
+            vo.setJsonSchema(templateDetail.getJsonSchema());
+            vo.setControlDetails(templateDetail.getControlDetails());
+            vo.setWorkflowConfig(templateDetail.getWorkflowConfig());
+        }
+        
         vo.setFormData(formData);
         vo.setStatus(instance.getStatus());
         // 业务状态

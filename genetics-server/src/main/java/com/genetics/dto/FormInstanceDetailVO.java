@@ -1,5 +1,6 @@
 package com.genetics.dto;
 
+import com.genetics.entity.workflow.TemplateWorkflowConfig;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -22,6 +23,8 @@ public class FormInstanceDetailVO {
     private String serviceCodeL3;
     /** 解析后的JSON Schema */
     private Object jsonSchema;
+    /** 工作流配置 (用于还原各阶段表单) */
+    private TemplateWorkflowConfig workflowConfig;
     /** 控件详情列表 */
     private List<FormTemplateDetailVO.ControlDetailVO> controlDetails;
     /** 当前表单数据（已填写内容） */

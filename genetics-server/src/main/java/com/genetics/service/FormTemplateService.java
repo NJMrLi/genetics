@@ -19,5 +19,7 @@ public interface FormTemplateService {
 
     FormTemplateDetailVO getDetailById(Long id);
 
-    Page<FormTemplate> page(int pageNum, int pageSize, String countryCode, String serviceCodeL3);
+    Long upgrade(Long id);
+
+    Page<FormTemplate> page(int pageNum, int pageSize, String countryCode, String serviceCodeL3, Integer status, Boolean latestOnly);
 }

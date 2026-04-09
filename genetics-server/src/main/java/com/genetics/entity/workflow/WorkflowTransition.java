@@ -34,9 +34,9 @@ public class WorkflowTransition {
     private Boolean needRemark;
 
     /**
-     * 动作关联的表单配置 (JSON Schema)
+     * 动作关联的表单配置 (JSON Schema 对象)
      */
-    private String formSchema;
+    private Object formSchema;
 
     /**
      * 条件：VAT/EPR/null（为null表示都适用）

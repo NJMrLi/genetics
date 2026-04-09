@@ -1,7 +1,7 @@
 <template>
   <div class="canvas">
     <!-- 画板工具栏 -->
-    <div class="canvas-toolbar">
+    <div class="canvas-toolbar" v-if="!readonly">
       <span class="canvas-title">画板布局</span>
       <n-button type="primary" size="small" @click="store.addRow">
         <template #icon><n-icon><AddOutline /></n-icon></template>
@@ -10,10 +10,10 @@
     </div>
 
     <!-- 画板内容 -->
-    <div class="canvas-body">
+    <div class="canvas-body" :class="{ 'readonly-canvas': readonly }">
       <n-scrollbar trigger="hover">
         <div class="canvas-content-inner">
-          <n-empty v-if="!store.rows.length" description="拖拽左侧控件到此处，或点击「添加行」" />
+          <n-empty v-if="!store.rows.length" :description="readonly ? '未配置表单' : '拖拽左侧控件到此处，或点击「添加行」'" />
 
           <div
             v-for="(row, rowIndex) in store.rows"
@@ -21,7 +21,7 @@
             class="canvas-row"
           >
             <!-- 行工具栏 -->
-            <div class="row-toolbar">
+            <div class="row-toolbar" v-if="!readonly">
               <n-space align="center">
                 <span class="row-label">第 {{ rowIndex + 1 }} 行</span>
                 <n-select
@@ -43,6 +43,7 @@
               :group="{ name: 'controls', pull: true, put: true }"
               item-key="controlId"
               class="canvas-grid"
+              :disabled="readonly"
               :style="getGridStyle(row.columns)"
               @add="(e) => handleAdd(e, rowIndex)"
             >
@@ -53,16 +54,18 @@
                   @click="showControlDetail(cell, rowIndex)"
                 >
                   <!-- 控件卡片 -->
-                  <div class="cell-card" :class="{ active: selectedCell?.controlId === cell.controlId }">
+                  <div class="cell-card" :class="{ active: selectedCell?.controlId === cell.controlId, readonly: readonly }">
                     <div class="cell-header">
                       <n-input
+                        v-if="!readonly"
                         v-model:value="cell.label"
                         size="small"
                         placeholder="标签名"
                         class="cell-label-input"
                         @click.stop
                       />
-                      <n-space :size="4">
+                      <span v-else class="cell-label-text">{{ cell.label }}</span>
+                      <n-space :size="4" v-if="!readonly">
                         <n-select
                           v-model:value="cell.colSpan"
                           :options="getColSpanOptions(row.columns)"
@@ -86,7 +89,7 @@
 
               <!-- 空行拖拽提示 -->
               <template #footer>
-                <div v-if="!row.cells.length" class="drop-placeholder">
+                <div v-if="!row.cells.length && !readonly" class="drop-placeholder">
                   拖拽控件到此行
                 </div>
               </template>
@@ -183,6 +186,10 @@ import { AddOutline, TrashOutline, CloseOutline } from '@vicons/ionicons5'
 import draggable from 'vuedraggable'
 import { useFormDesignerStore } from '@/stores/formDesigner'
 import { listAllControls } from '@/api/formControl'
+
+const props = defineProps({
+  readonly: Boolean
+})
 
 const store = useFormDesignerStore()
 

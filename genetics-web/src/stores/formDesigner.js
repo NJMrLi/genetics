@@ -130,7 +130,6 @@ export const useFormDesignerStore = defineStore('formDesigner', () => {
   }
 
   return {
-    columns,
     rows,
     templateInfo,
     jsonSchema,

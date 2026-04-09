@@ -23,20 +23,20 @@
 
     <div class="modal-layout">
       <!-- 左侧控件库 -->
-      <div class="left-panel">
+      <div class="left-panel" v-if="!readonly">
         <control-panel />
       </div>
       
       <!-- 右侧画板 -->
       <div class="right-panel">
-        <canvas-panel />
+        <canvas-panel :readonly="readonly" />
       </div>
     </div>
     
     <template #footer>
       <n-space justify="end">
-        <n-button @click="show = false">取消</n-button>
-        <n-button type="primary" @click="handleConfirm">确认配置</n-button>
+        <n-button @click="show = false">{{ readonly ? '关闭' : '取消' }}</n-button>
+        <n-button v-if="!readonly" type="primary" @click="handleConfirm">确认配置</n-button>
       </n-space>
     </template>
   </n-modal>
@@ -80,7 +80,8 @@ import { useFormDesignerStore } from '@/stores/formDesigner'
 const props = defineProps({
   show: Boolean,
   actionName: String,
-  initialSchema: [Object, String]
+  initialSchema: [Object, String],
+  readonly: Boolean
 })
 
 const emit = defineEmits(['update:show', 'confirm'])
@@ -108,7 +109,8 @@ watch(() => props.show, (val) => {
         }
       }
       if (schema) {
-        store.loadTemplate(schema)
+        // loadTemplate 预期接收一个包含 jsonSchema 属性的对象
+        store.loadTemplate({ jsonSchema: schema })
       }
     }
   }
@@ -119,8 +121,8 @@ watch(show, (val) => {
 })
 
 function handleConfirm() {
-  const schema = JSON.stringify(store.jsonSchema)
-  emit('confirm', schema)
+  // 直接发送 store.jsonSchema 对象，避免双重 JSON 序列化
+  emit('confirm', JSON.parse(JSON.stringify(store.jsonSchema)))
   show.value = false
 }
 

@@ -1,7 +1,7 @@
 <template>
-  <n-form ref="formRef" :model="formData" label-placement="top" class="dynamic-form">
+  <n-form v-if="parsedSchema?.rows" ref="formRef" :model="formData" label-placement="top" class="dynamic-form">
     <div
-      v-for="row in schema.rows"
+      v-for="row in parsedSchema.rows"
       :key="row.rowIndex"
       class="form-row"
       :style="getRowStyle(row)"
@@ -33,6 +33,7 @@
       </div>
     </div>
   </n-form>
+  <n-empty v-else description="未配置表单内容" />
 </template>
 
 <script setup>
@@ -42,7 +43,7 @@ import ControlRenderer from './ControlRenderer.vue'
 
 const props = defineProps({
   schema: {
-    type: Object,
+    type: [Object, String],
     required: true
   },
   controlDetails: {
@@ -63,6 +64,21 @@ const emit = defineEmits(['update:modelValue'])
 
 const formRef = ref(null)
 
+// 兼容 schema 是字符串的情况
+const parsedSchema = computed(() => {
+  if (typeof props.schema === 'string') {
+    try {
+      let s = JSON.parse(props.schema)
+      if (typeof s === 'string') s = JSON.parse(s)
+      return s
+    } catch (e) {
+      console.error('DynamicForm: schema 解析失败', e)
+      return null
+    }
+  }
+  return props.schema
+})
+
 // controlId -> controlDetail 映射
 const controlMap = computed(() => {
   const map = {}
@@ -82,7 +98,7 @@ const formData = computed({
 function getRowStyle(row) {
   return {
     display: 'grid',
-    gridTemplateColumns: `repeat(${row.columns || props.schema?.columns || 2}, 1fr)`,
+    gridTemplateColumns: `repeat(${row.columns || parsedSchema.value?.columns || 2}, 1fr)`,
     gap: '0 16px'
   }
 }

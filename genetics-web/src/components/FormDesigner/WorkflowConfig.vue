@@ -3,26 +3,29 @@
     <!-- 顶部工具栏 -->
     <div class="config-toolbar">
       <n-space align="center" :wrap="false">
-        <span class="toolbar-section">快速加载：</span>
-        <n-button-group size="small">
-          <n-button @click="loadDefaultConfig">
-            <template #icon><n-icon><GitNetworkOutline /></n-icon></template>
-            默认流程
+        <template v-if="!readonly">
+          <span class="toolbar-section">快速加载：</span>
+          <n-button-group size="small">
+            <n-button @click="loadDefaultConfig">
+              <template #icon><n-icon><GitNetworkOutline /></n-icon></template>
+              默认流程
+            </n-button>
+            <n-button @click="loadVatConfig">VAT流程</n-button>
+            <n-button @click="loadEprConfig">EPR流程</n-button>
+          </n-button-group>
+          <n-divider vertical />
+          <n-button size="small" @click="clearAll">
+            <template #icon><n-icon><TrashOutline /></n-icon></template>
+            清空
           </n-button>
-          <n-button @click="loadVatConfig">VAT流程</n-button>
-          <n-button @click="loadEprConfig">EPR流程</n-button>
-        </n-button-group>
-        <n-divider vertical />
-        <n-button size="small" @click="clearAll">
-          <template #icon><n-icon><TrashOutline /></n-icon></template>
-          清空
-        </n-button>
+          <n-divider vertical />
+        </template>
         <n-button size="small" @click="showJsonModal = true">
           <template #icon><n-icon><CodeSlashOutline /></n-icon></template>
           查看JSON
         </n-button>
-        <n-divider vertical />
-        <span class="toolbar-tip">
+        <n-divider vertical v-if="!readonly" />
+        <span class="toolbar-tip" v-if="!readonly">
           <n-icon size="13" color="#aaa"><InformationCircleOutline /></n-icon>
           拖拽左侧节点到画布 · 拖拽节点底部绿点连线
         </span>
@@ -31,7 +34,7 @@
 
     <div class="designer-layout">
       <!-- 左侧节点库 -->
-      <div class="node-palette">
+      <div class="node-palette" v-if="!readonly">
         <div class="palette-section">状态节点</div>
         <div
           v-for="state in stateOptions"
@@ -54,7 +57,8 @@
           v-model:edges="edges"
           :default-edge-options="defaultEdgeOptions"
           :connect-on-click="false"
-          :nodes-connectable="true"
+          :nodes-connectable="!readonly"
+          :nodes-draggable="!readonly"
           :zoom-on-scroll="true"
           fit-view-on-init
           @connect="onConnect"
@@ -77,8 +81,8 @@
                 <span class="flow-node-label">{{ nodeProps.data.label }}</span>
               </div>
               <div v-if="config.allowTerminateFrom?.includes(nodeProps.data.stateId)" class="flow-node-tag">可终止</div>
-              <Handle type="target" :position="Position.Top" class="fh fh-top" />
-              <Handle type="source" :position="Position.Bottom" class="fh fh-bottom" />
+              <Handle v-if="!readonly" type="target" :position="Position.Top" class="fh fh-top" />
+              <Handle v-if="!readonly" type="source" :position="Position.Bottom" class="fh fh-bottom" />
             </div>
           </template>
         </VueFlow>
@@ -87,7 +91,7 @@
         <div v-if="nodes.length === 0" class="canvas-empty">
           <n-icon size="48" color="#ddd"><GitNetworkOutline /></n-icon>
           <p>从左侧拖拽节点到此处开始配置</p>
-          <p style="font-size:12px;color:#bbb">或点击上方快速加载预设流程</p>
+          <p v-if="!readonly" style="font-size:12px;color:#bbb">或点击上方快速加载预设流程</p>
         </div>
       </div>
 
@@ -105,6 +109,7 @@
                 v-model:value="selectedEdge.data.action"
                 :options="presetActions"
                 placeholder="请选择预设操作"
+                :disabled="readonly"
                 @update:value="onActionSelect"
               />
             </n-form-item>
@@ -117,20 +122,21 @@
                 :options="conditionOptions"
                 placeholder="通用（不限条件）"
                 clearable
+                :disabled="readonly"
               />
             </n-form-item>
             <n-form-item label="需要填写备注">
-              <n-switch v-model:value="selectedEdge.data.needRemark" size="small" />
+              <n-switch v-model:value="selectedEdge.data.needRemark" size="small" :disabled="readonly" />
             </n-form-item>
             <n-form-item label="关联业务表单">
               <n-button size="small" secondary block type="primary" @click="openFormDesigner">
                 <template #icon><n-icon><CreateOutline /></n-icon></template>
-                {{ selectedEdge.data.formSchema ? '编辑表单' : '配置表单' }}
+                {{ readonly ? '查看表单' : (selectedEdge.data.formSchema ? '编辑表单' : '配置表单') }}
               </n-button>
               <div v-if="selectedEdge.data.formSchema" class="form-tag">已配置</div>
             </n-form-item>
           </n-form>
-          <n-button type="error" size="small" block style="margin-top:16px" ghost @click="removeSelectedEdge">
+          <n-button v-if="!readonly" type="error" size="small" block style="margin-top:16px" ghost @click="removeSelectedEdge">
             <template #icon><n-icon><TrashOutline /></n-icon></template>
             删除此连线
           </n-button>
@@ -151,10 +157,11 @@
                 :value="config.allowTerminateFrom?.includes(selectedNode.data.stateId)"
                 @update:value="toggleTerminate(selectedNode.data.stateId)"
                 size="small"
+                :disabled="readonly"
               />
             </n-form-item>
           </n-form>
-          <n-button type="error" size="small" block style="margin-top:16px" ghost @click="removeSelectedNode">
+          <n-button v-if="!readonly" type="error" size="small" block style="margin-top:16px" ghost @click="removeSelectedNode">
             <template #icon><n-icon><TrashOutline /></n-icon></template>
             删除此节点
           </n-button>
@@ -182,6 +189,7 @@
     v-model:show="showFormModal"
     :action-name="selectedEdge.data.actionName"
     :initial-schema="selectedEdge.data.formSchema"
+    :readonly="readonly"
     @confirm="handleFormConfirm"
   />
 </template>
@@ -209,7 +217,10 @@ import {
 } from '@vicons/ionicons5'
 import WorkflowFormModal from './WorkflowFormModal.vue'
 
-const props = defineProps({ modelValue: { type: Object, default: null } })
+const props = defineProps({
+  modelValue: { type: Object, default: null },
+  readonly: { type: Boolean, default: false }
+})
 const emit = defineEmits(['update:modelValue'])
 const message = useMessage()
 
@@ -283,6 +294,8 @@ const showJsonModal = ref(false)
 
 // -------- 数据同步：edges → config.transitions --------
 watch(edges, (val) => {
+  if (!val) return
+  // 同步 transitions 数据
   config.value.transitions = val.map(e => ({
     from: e.data?.from,
     to: e.data?.to,
@@ -292,11 +305,14 @@ watch(edges, (val) => {
     condition: e.data?.condition || null,
     formSchema: e.data?.formSchema || null
   }))
+  // 显式触发一次 emit 确保父组件同步
+  emit('update:modelValue', JSON.parse(JSON.stringify(config.value)))
 }, { deep: true })
 
 // -------- 数据同步：config → emit --------
-watch(config, (val) => {
-  emit('update:modelValue', JSON.parse(JSON.stringify(val)))
+// 注意：allowTerminateFrom 变更时也需要触发 emit
+watch(() => config.value.allowTerminateFrom, (val) => {
+  emit('update:modelValue', JSON.parse(JSON.stringify(config.value)))
 }, { deep: true })
 
 // -------- 从外部 modelValue 初始化（挂载后执行） --------
@@ -310,9 +326,13 @@ onMounted(async () => {
   }))
 
   nextTick(() => {
-    if (props.modelValue?.transitions?.length) {
+    if (props.modelValue) {
+      // 深度拷贝初始值到本地 config
       config.value = JSON.parse(JSON.stringify(props.modelValue))
-      applyToCanvas(props.modelValue)
+      // 如果 transitions 存在，则应用到画布上
+      if (props.modelValue.transitions?.length) {
+        applyToCanvas(props.modelValue)
+      }
     }
   })
 })
@@ -414,20 +434,25 @@ function openFormDesigner() {
 }
 
 function handleFormConfirm(schema) {
-  const edge = edges.value.find(e => e.id === selectedEdge.value?.id)
-  if (edge) {
-    edge.data.formSchema = schema
+  const index = edges.value.findIndex(e => e.id === selectedEdge.value?.id)
+  if (index !== -1) {
+    const edge = edges.value[index]
+    // schema 现在是对象，不再是字符串
+    edges.value[index] = { ...edge, data: { ...edge.data, formSchema: schema } }
+    selectedEdge.value = edges.value[index]
     message.success('表单配置已更新')
   }
 }
 
 // -------- 点击事件 --------
 function onEdgeClick({ edge }) {
-  selectedEdge.value = edge
+  // 确保选中的是响应式数据
+  selectedEdge.value = edges.value.find(e => e.id === edge.id) || edge
   selectedNode.value = null
 }
 function onNodeClick({ node }) {
-  selectedNode.value = node
+  // 确保选中的是响应式数据
+  selectedNode.value = nodes.value.find(n => n.id === node.id) || node
   selectedEdge.value = null
 }
 function onPaneClick() {
@@ -436,14 +461,21 @@ function onPaneClick() {
 }
 
 function onActionSelect(val) {
-  const edge = edges.value.find(e => e.id === selectedEdge.value?.id)
+  const index = edges.value.findIndex(e => e.id === selectedEdge.value?.id)
   const action = presetActions.value.find(a => a.value === val)
-  if (edge && action) {
-    edge.data.actionName = action.label
-    edge.label = action.label
-    if (action.needRemark !== undefined) {
-      edge.data.needRemark = action.needRemark
+  if (index !== -1 && action) {
+    const edge = edges.value[index]
+    edges.value[index] = {
+      ...edge,
+      label: action.label,
+      data: {
+        ...edge.data,
+        action: val,
+        actionName: action.label,
+        needRemark: action.needRemark !== undefined ? action.needRemark : edge.data.needRemark
+      }
     }
+    selectedEdge.value = edges.value[index]
   }
 }
 

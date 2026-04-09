@@ -4,22 +4,37 @@
     <n-card size="small" class="header-card">
       <div class="header-content">
         <div class="template-info">
-          <span class="info-label">模板：</span>
-          <span class="info-value">{{ templateInfo.templateName || '未命名' }}</span>
+          <span class="info-label">模板名称：</span>
+          <n-input v-if="!isViewOnly" v-model:value="templateInfo.templateName" size="small" style="width: 200px" />
+          <span v-else class="info-value">{{ templateInfo.templateName }}</span>
           <n-divider vertical />
           <span class="info-label">版本：</span>
-          <span class="info-value">{{ templateInfo.version || '1.0.0' }}</span>
+          <n-input v-if="!isViewOnly" v-model:value="templateInfo.version" size="small" style="width: 100px" />
+          <span v-else class="info-value">{{ templateInfo.version }}</span>
         </div>
         <div class="form-actions">
+          <n-button v-if="!isViewOnly" secondary type="primary" @click="showBaseFormModal = true">
+            <template #icon><n-icon><CreateOutline /></n-icon></template>
+            基础表单设计
+          </n-button>
           <n-button @click="goBack">返回</n-button>
-          <n-button type="primary" :loading="saving" @click="handleSave">保存</n-button>
+          <n-button v-if="!isViewOnly" type="primary" :loading="saving" @click="handleSave">保存</n-button>
         </div>
       </div>
     </n-card>
 
+    <!-- 基础表单设计弹窗 -->
+    <workflow-form-modal
+      v-model:show="showBaseFormModal"
+      :action-name="isViewOnly ? '基础表单(查看)' : '基础表单'"
+      :initial-schema="templateInfo.jsonSchema"
+      :readonly="isViewOnly"
+      @confirm="handleBaseFormConfirm"
+    />
+
     <!-- 工作流设计器：等数据加载完再挂载，保证 onMounted 时 modelValue 已有值 -->
     <div class="designer-body">
-      <workflow-config v-if="loaded" v-model="workflowConfig" />
+      <workflow-config v-if="loaded" v-model="workflowConfig" :readonly="isViewOnly" />
       <div v-else class="loading-placeholder">
         <n-spin size="large" />
       </div>
@@ -35,9 +50,12 @@ import {
   NButton,
   NDivider,
   NSpin,
+  NIcon,
   useMessage
 } from 'naive-ui'
+import { CreateOutline } from '@vicons/ionicons5'
 import WorkflowConfig from '@/components/FormDesigner/WorkflowConfig.vue'
+import WorkflowFormModal from '@/components/FormDesigner/WorkflowFormModal.vue'
 import { getTemplate, updateTemplate } from '@/api/formTemplate'
 
 const route = useRoute()
@@ -45,10 +63,14 @@ const router = useRouter()
 const message = useMessage()
 const templateId = route.params.id
 
+// 是否为查看模式
+const isViewOnly = computed(() => route.query.mode === 'view')
+
 const saving = ref(false)
 const templateInfo = ref({})
 const workflowConfig = ref(null)
 const loaded = ref(false)  // 数据加载完成后再挂载画布
+const showBaseFormModal = ref(false)
 
 async function loadTemplate() {
   if (!templateId) return
@@ -56,6 +78,12 @@ async function loadTemplate() {
   templateInfo.value = res.data
   workflowConfig.value = res.data.workflowConfig || null
   loaded.value = true
+}
+
+function handleBaseFormConfirm(schema) {
+  // schema 现在是对象，不再是字符串
+  templateInfo.value.jsonSchema = schema
+  message.success('基础表单已配置')
 }
 
 async function handleSave() {

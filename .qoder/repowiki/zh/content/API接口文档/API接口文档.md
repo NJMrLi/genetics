@@ -7,28 +7,40 @@
 - [FormTemplateController.java](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java)
 - [FormInstanceController.java](file://genetics-server/src/main/java/com/genetics/controller/FormInstanceController.java)
 - [BasicDataController.java](file://genetics-server/src/main/java/com/genetics/controller/BasicDataController.java)
+- [WorkflowActionController.java](file://genetics-server/src/main/java/com/genetics/controller/WorkflowActionController.java)
 - [FormControlDTO.java](file://genetics-server/src/main/java/com/genetics/dto/FormControlDTO.java)
 - [FormTemplateDTO.java](file://genetics-server/src/main/java/com/genetics/dto/FormTemplateDTO.java)
 - [FormInstanceCreateDTO.java](file://genetics-server/src/main/java/com/genetics/dto/FormInstanceCreateDTO.java)
 - [FormInstanceSaveDTO.java](file://genetics-server/src/main/java/com/genetics/dto/FormInstanceSaveDTO.java)
+- [WorkflowTransitionRequestDTO.java](file://genetics-server/src/main/java/com/genetics/dto/WorkflowTransitionRequestDTO.java)
 - [CountryCode.java](file://genetics-server/src/main/java/com/genetics/enums/CountryCode.java)
 - [ControlType.java](file://genetics-server/src/main/java/com/genetics/enums/ControlType.java)
 - [InstanceStatus.java](file://genetics-server/src/main/java/com/genetics/enums/InstanceStatus.java)
 - [OrderStatus.java](file://genetics-server/src/main/java/com/genetics/enums/OrderStatus.java)
+- [WorkflowAction.java](file://genetics-server/src/main/java/com/genetics/entity/workflow/WorkflowAction.java)
+- [WorkflowState.java](file://genetics-server/src/main/java/com/genetics/entity/workflow/WorkflowState.java)
+- [WorkflowTransition.java](file://genetics-server/src/main/java/com/genetics/entity/workflow/WorkflowTransition.java)
+- [WorkflowActionConstants.java](file://genetics-server/src/main/java/com/genetics/common/constants/WorkflowActionConstants.java)
+- [WorkflowActionInitializer.java](file://genetics-server/src/main/java/com/genetics/config/WorkflowActionInitializer.java)
+- [WorkflowActionService.java](file://genetics-server/src/main/java/com/genetics/service/WorkflowActionService.java)
 - [application.yml](file://genetics-server/src/main/resources/application.yml)
 - [formControl.js](file://genetics-web/src/api/formControl.js)
 - [formTemplate.js](file://genetics-web/src/api/formTemplate.js)
 - [formInstance.js](file://genetics-web/src/api/formInstance.js)
 - [basic.js](file://genetics-web/src/api/basic.js)
+- [workflowAction.js](file://genetics-web/src/api/workflowAction.js)
+- [workflowActions.js](file://genetics-web/src/constants/workflowActions.js)
+- [006-add-workflow-action.sql](file://genetics-server/src/main/resources/db/changelog/sql/006-add-workflow-action.sql)
+- [004-add-workflow-config.sql](file://genetics-server/src/main/resources/db/changelog/sql/004-add-workflow-config.sql)
 </cite>
 
 ## 更新摘要
 **所做更改**
-- 新增基础数据API模块的完整接口文档
-- 更新所有控制器接口的详细参数说明
-- 添加Swagger UI访问链接和接口文档说明
-- 完善业务状态枚举和国家代码枚举的详细说明
-- 增强API测试指南和常见问题解决方案
+- 新增工作流动作管理API模块的完整接口文档
+- 新增工作流状态和流转规则的数据结构说明
+- 更新工作流初始化器和常量定义的详细说明
+- 完善工作流相关的数据库表结构和迁移脚本说明
+- 增强API测试指南中关于工作流功能的测试建议
 
 ## 目录
 1. [简介](#简介)
@@ -39,25 +51,29 @@
 6. [服务单模板API](#服务单模板api)
 7. [服务单实例API](#服务单实例api)
 8. [基础数据API](#基础数据api)
-9. [API测试指南](#api测试指南)
-10. [常见问题解答](#常见问题解答)
-11. [性能优化建议](#性能优化建议)
-12. [安全注意事项](#安全注意事项)
+9. [工作流动作管理API](#工作流动作管理api)
+10. [工作流状态与流转API](#工作流状态与流转api)
+11. [API测试指南](#api测试指南)
+12. [常见问题解答](#常见问题解答)
+13. [性能优化建议](#性能优化建议)
+14. [安全注意事项](#安全注意事项)
 
 ## 简介
-VAT&EPR动态表单系统是一个基于Spring Boot 3.2 + Vue 3的企业级动态表单管理系统，专为增值税(VAT)和环境报告(EPR)业务场景设计。系统支持自定义控件、拖拽式表单设计、服务单全生命周期管理和多国家多语言支持。
+VAT&EPR动态表单系统是一个基于Spring Boot 3.2 + Vue 3的企业级动态表单管理系统，专为增值税(VAT)和环境报告(EPR)业务场景设计。系统支持自定义控件、拖拽式表单设计、服务单全生命周期管理和多国家多语言支持，现已集成完整的工作流管理功能。
 
 ## 项目概述
-本系统采用前后端分离架构，后端使用Spring Boot 3.2和MyBatis-Plus，前端使用Vue 3 + Element Plus，提供完整的表单设计、实例管理和数据转换功能。
+本系统采用前后端分离架构，后端使用Spring Boot 3.2和MyBatis-Plus，前端使用Vue 3 + Element Plus，提供完整的表单设计、实例管理、数据转换和工作流管理功能。
 
 **技术特性**
 - 支持7种控件类型：输入框、文本域、数字输入、下拉框、开关、日期选择、文件上传
 - 拖拽式表单设计器，支持1-4列布局
 - 多国家支持：DEU(德国)、FRA(法国)、ITA(意大利)、ESP(西班牙)、POL(波兰)、CZE(捷克)、GBR(英国)
 - 完整的服务单状态管理：草稿、已提交、已审核、待提交、待审核、待递交、已完成、已驳回、已终止
+- **新增**：完整的工作流动作管理，支持9种预定义工作流动作
+- **新增**：灵活的状态流转规则配置，支持条件化工作流执行
 
 ## 技术架构
-系统采用现代化的技术栈，确保高性能和可扩展性。
+系统采用现代化的技术栈，确保高性能和可扩展性，现已集成工作流管理模块。
 
 ```mermaid
 graph TB
@@ -77,6 +93,11 @@ SWAGGER[Swagger UI]
 LOG[日志系统]
 CACHE[缓存层]
 end
+subgraph "工作流模块"
+WFA[工作流动作管理]
+WFS[工作流状态管理]
+WFT[工作流流转规则]
+end
 WEB --> API
 API --> CTRL
 CTRL --> SVC
@@ -85,6 +106,9 @@ MAP --> DB
 CTRL --> SWAGGER
 SVC --> CACHE
 WEB --> UI
+WFA --> CTRL
+WFS --> CTRL
+WFT --> CTRL
 ```
 
 **章节来源**
@@ -92,7 +116,7 @@ WEB --> UI
 - [application.yml:33-40](file://genetics-server/src/main/resources/application.yml#L33-L40)
 
 ## API接口总览
-系统提供四个主要模块的RESTful API接口，所有接口均遵循统一的响应格式。
+系统提供五个主要模块的RESTful API接口，所有接口均遵循统一的响应格式。
 
 **统一响应格式**
 ```json
@@ -108,6 +132,7 @@ WEB --> UI
 - 服务单模板：`/api/form-template`
 - 服务单实例：`/api/form-instance`
 - 基础数据：`/api/basic`
+- **新增** 工作流动作：`/api/workflow/actions`
 
 **章节来源**
 - [README.md:140-147](file://README.md#L140-L147)
@@ -272,10 +297,10 @@ WEB --> UI
 ## 服务单模板API
 
 ### 接口概览
-服务单模板管理接口用于设计和管理服务单模板，支持拖拽式表单设计器、版本管理和发布流程。
+服务单模板管理接口用于设计和管理服务单模板，支持拖拽式表单设计器、版本管理和发布流程，现已支持工作流配置。
 
 ### 模板配置参数
-模板配置包含元信息和JSON Schema布局信息：
+模板配置包含元信息、JSON Schema布局信息和工作流配置：
 
 **元信息配置**
 - templateName：模板名称
@@ -290,6 +315,9 @@ WEB --> UI
 - layout：布局配置
 - columns：列数配置
 - rows：行配置和控件信息
+
+**工作流配置**
+- workflow_config：JSON格式的工作流配置，定义状态流转规则和动作关联
 
 ### 接口详情
 
@@ -316,6 +344,24 @@ WEB --> UI
             "colSpan": 2
           }
         ]
+      }
+    ]
+  },
+  "workflow_config": {
+    "states": [
+      {
+        "code": 10,
+        "name": "待提交",
+        "type": "initial",
+        "tagType": "info"
+      }
+    ],
+    "transitions": [
+      {
+        "from": 10,
+        "to": 20,
+        "action": "submit",
+        "actionName": "提交"
       }
     ]
   },
@@ -371,6 +417,7 @@ WEB --> UI
     "serviceCodeL2": "IMPORT",
     "serviceCodeL3": "STANDARD",
     "jsonSchema": {},
+    "workflow_config": {},
     "status": 0,
     "remark": "标准VAT申报模板",
     "controlDetails": []
@@ -412,7 +459,7 @@ WEB --> UI
 ## 服务单实例API
 
 ### 接口概览
-服务单实例接口用于根据模板创建服务单实例、保存草稿、提交实例并管理业务状态流转。
+服务单实例接口用于根据模板创建服务单实例、保存草稿、提交实例并管理业务状态流转，现已集成工作流操作功能。
 
 ### 业务状态枚举
 系统支持完整的业务状态管理：
@@ -495,7 +542,6 @@ WEB --> UI
   "orderStatusId": 10,
   "serviceStartTime": "2024-01-01 09:00:00",
   "serviceEndTime": "2024-01-01 17:00:00"
-  }
 }
 ```
 
@@ -639,6 +685,177 @@ WEB --> UI
 - [BasicDataController.java:26-36](file://genetics-server/src/main/java/com/genetics/controller/BasicDataController.java#L26-L36)
 - [CountryCode.java:9-34](file://genetics-server/src/main/java/com/genetics/enums/CountryCode.java#L9-L34)
 
+## 工作流动作管理API
+
+### 接口概览
+工作流动作管理API用于管理系统中可用的工作流动作定义，支持增删改查和排序管理。
+
+### 工作流动作实体结构
+工作流动作定义包含以下核心字段：
+
+**基本信息**
+- id：主键ID
+- actionCode：动作编码（如 submit, auditPass）
+- actionName：动作显示名称（如 提交, 审核通过）
+- icon：动作图标（Ionicons名称）
+- buttonType：按钮类型（primary, info, success, warning, error）
+
+**交互配置**
+- needRemark：是否默认需要填写备注
+- remarkPlaceholder：备注框提示语
+- sort：排序权重
+- description：动作描述
+
+**系统字段**
+- createTime：创建时间
+- updateTime：更新时间
+- deleted：逻辑删除标记
+
+### 预定义工作流动作
+系统内置9种预定义工作流动作，通过CommandLineRunner自动初始化：
+
+| 动作编码 | 显示名称 | 图标 | 按钮类型 | 需要备注 | 排序权重 |
+|---------|----------|------|----------|----------|----------|
+| submit | 提交 | CloudUploadOutline | primary | 否 | 10 |
+| auditPass | 审核通过 | CheckmarkCircleOutline | success | 否 | 20 |
+| auditReject | 审核驳回 | CloseCircleOutline | error | 是 | 30 |
+| resubmit | 重新提交 | RefreshOutline | primary | 否 | 40 |
+| submitLocal | 递交当地同事 | PeopleOutline | info | 否 | 50 |
+| submitTax | 递交税局 | BusinessOutline | info | 否 | 60 |
+| submitOrg | 递交组织 | FileTrayFullOutline | info | 否 | 70 |
+| complete | 完成 | CheckmarkDoneOutline | success | 否 | 80 |
+| terminate | 终止 | StopCircleOutline | error | 是 | 90 |
+
+### 接口详情
+
+#### 获取工作流动作列表
+**请求方法**：GET  
+**请求URL**：`/api/workflow/actions/list`
+
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": [
+    {
+      "id": 1,
+      "actionCode": "submit",
+      "actionName": "提交",
+      "icon": "CloudUploadOutline",
+      "buttonType": "primary",
+      "needRemark": false,
+      "remarkPlaceholder": null,
+      "sort": 10,
+      "description": null,
+      "createTime": "2024-01-01 10:00:00",
+      "updateTime": "2024-01-01 10:00:00",
+      "deleted": 0
+    }
+  ]
+}
+```
+
+**章节来源**
+- [WorkflowActionController.java:18-21](file://genetics-server/src/main/java/com/genetics/controller/WorkflowActionController.java#L18-L21)
+- [WorkflowAction.java:10-65](file://genetics-server/src/main/java/com/genetics/entity/workflow/WorkflowAction.java#L10-L65)
+
+#### 保存工作流动作
+**请求方法**：POST  
+**请求URL**：`/api/workflow/actions`  
+**请求头**：`Content-Type: application/json`  
+**请求体参数**：
+```json
+{
+  "actionCode": "customAction",
+  "actionName": "自定义动作",
+  "icon": "StarOutline",
+  "buttonType": "warning",
+  "needRemark": true,
+  "remarkPlaceholder": "请输入自定义备注",
+  "sort": 100,
+  "description": "自定义工作流动作描述"
+}
+```
+
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": true
+}
+```
+
+**章节来源**
+- [WorkflowActionController.java:23-26](file://genetics-server/src/main/java/com/genetics/controller/WorkflowActionController.java#L23-L26)
+- [WorkflowActionService.java:7-12](file://genetics-server/src/main/java/com/genetics/service/WorkflowActionService.java#L7-L12)
+
+#### 删除工作流动作
+**请求方法**：DELETE  
+**请求URL**：`/api/workflow/actions/{id}`  
+**路径参数**：
+- id：动作ID
+
+**响应示例**：
+```json
+{
+  "code": 0,
+  "message": "操作成功",
+  "data": true
+}
+```
+
+**章节来源**
+- [WorkflowActionController.java:28-31](file://genetics-server/src/main/java/com/genetics/controller/WorkflowActionController.java#L28-L31)
+
+## 工作流状态与流转API
+
+### 工作流状态定义
+工作流状态是服务单业务状态的抽象表示，包含以下字段：
+
+**状态标识**
+- code：状态编码（对应业务状态ID）
+- name：状态名称
+- type：状态类型
+  - initial：初始状态
+  - process：处理中状态
+  - final：终态
+  - exception：异常态
+  - terminal：终止态
+
+**前端展示**
+- tagType：标签类型（用于前端颜色标识）
+
+### 工作流流转规则
+工作流流转规则定义了状态之间的转换关系，包含以下关键字段：
+
+**流转关系**
+- from：起始状态编码（ServeState的id）
+- to：目标状态编码
+- action：操作编码（关联WorkflowAction.actionCode）
+- actionName：操作名称
+
+**交互要求**
+- needRemark：是否需要填写备注/原因
+- formSchema：动作关联的表单配置（JSON Schema）
+
+**条件限制**
+- condition：适用条件（VAT/EPR/null，null表示都适用）
+
+### 工作流执行请求
+执行状态流转时使用以下请求结构：
+
+**请求参数**
+- action：操作编码（如 submit, auditPass, auditReject）
+- remark：备注/原因
+- actionFormData：动作触发时填写的额外表单数据（Map格式）
+
+**章节来源**
+- [WorkflowState.java:8-31](file://genetics-server/src/main/java/com/genetics/entity/workflow/WorkflowState.java#L8-L31)
+- [WorkflowTransition.java:8-46](file://genetics-server/src/main/java/com/genetics/entity/workflow/WorkflowTransition.java#L8-L46)
+- [WorkflowTransitionRequestDTO.java:9-26](file://genetics-server/src/main/java/com/genetics/dto/WorkflowTransitionRequestDTO.java#L9-L26)
+
 ## API测试指南
 
 ### Swagger UI访问
@@ -659,6 +876,7 @@ WEB --> UI
 2. **模板管理测试**：包含模板创建、更新、发布的完整流程
 3. **实例管理测试**：包含服务单从创建到提交的全流程测试
 4. **基础数据测试**：包含国家代码等枚举数据的查询测试
+5. **工作流动作测试**：包含工作流动作的增删改查完整流程
 
 ### 前端API封装
 前端提供了完整的API封装，便于JavaScript调用：
@@ -720,12 +938,25 @@ await getOrderStatusOptions()
 await getCountries()
 ```
 
+**工作流动作API封装**：
+```javascript
+// 获取动作列表
+await listWorkflowActions()
+
+// 保存动作
+await saveWorkflowAction(data)
+
+// 删除动作
+await deleteWorkflowAction(id)
+```
+
 **章节来源**
 - [README.md:77-78](file://README.md#L77-L78)
 - [formControl.js:1-9](file://genetics-web/src/api/formControl.js#L1-L9)
 - [formTemplate.js:1-9](file://genetics-web/src/api/formTemplate.js#L1-L9)
 - [formInstance.js:1-11](file://genetics-web/src/api/formInstance.js#L1-L11)
 - [basic.js:1-4](file://genetics-web/src/api/basic.js#L1-L4)
+- [workflowAction.js:1-24](file://genetics-web/src/api/workflowAction.js#L1-L24)
 
 ## 常见问题解答
 
@@ -770,12 +1001,20 @@ await getCountries()
 **问题**：如何防止并发覆盖？
 **答案**：系统采用乐观锁机制，通过version字段防止并发覆盖。当多个用户同时修改同一服务单实例时，系统会自动检测并阻止冲突。
 
+### 工作流动作管理问题
+**问题**：如何自定义工作流动作？
+**答案**：可以通过POST /api/workflow/actions接口创建自定义动作，或修改现有动作的配置。系统会自动处理动作的排序和显示。
+
+**问题**：工作流动作初始化失败怎么办？
+**答案**：系统通过CommandLineRunner自动初始化预定义动作。如果初始化失败，检查数据库连接和表结构是否正确。
+
 ## 性能优化建议
 
 ### 数据库优化
 1. **索引优化**：为常用查询字段建立合适的索引
    - 模板查询：countryCode + serviceCodeL3 组合索引
    - 控件查询：controlType + enabled 组合索引
+   - **新增** 工作流动作：actionCode唯一索引
 
 2. **分页查询**：所有列表接口都支持分页，建议合理设置每页大小
 
@@ -783,6 +1022,7 @@ await getCountries()
    - 控件列表：缓存1小时
    - 国家代码：缓存永久
    - 模板详情：缓存5分钟
+   - **新增** 工作流动作：缓存1小时
 
 ### 接口优化
 1. **批量操作**：对于频繁的控件查询，使用`/api/form-control/all`接口获取所有控件
@@ -791,12 +1031,16 @@ await getCountries()
 
 3. **数据压缩**：对于大型JSON Schema，考虑启用GZIP压缩
 
+4. **** 工作流动作查询：使用`/api/workflow/actions/list`接口获取排序后的动作列表
+
 ### 前端优化
 1. **懒加载**：模板设计器采用懒加载，减少初始加载时间
 
 2. **虚拟滚动**：列表组件使用虚拟滚动，提升大数据量下的性能
 
 3. **防抖处理**：搜索和筛选操作添加防抖，避免频繁请求
+
+4. **** 工作流动作选择：前端缓存动作列表，减少重复请求
 
 ## 安全注意事项
 
@@ -815,6 +1059,11 @@ await getCountries()
 2. **文件大小限制**：设置合理的文件大小上限
 3. **病毒扫描**：对上传文件进行病毒扫描
 
+### 工作流安全
+1. **动作权限控制**：不同用户角色只能执行允许的工作流动作
+2. **备注验证**：对于需要备注的动作，必须填写有效备注
+3. **状态验证**：确保状态流转的合法性和顺序性
+
 ### 日志监控
 1. **操作日志**：记录所有重要操作的日志
 2. **异常监控**：监控系统异常和错误
@@ -823,3 +1072,5 @@ await getCountries()
 **章节来源**
 - [application.yml:33-40](file://genetics-server/src/main/resources/application.yml#L33-L40)
 - [README.md:77-78](file://README.md#L77-L78)
+- [WorkflowActionInitializer.java:21-52](file://genetics-server/src/main/java/com/genetics/config/WorkflowActionInitializer.java#L21-L52)
+- [006-add-workflow-action.sql:5-20](file://genetics-server/src/main/resources/db/changelog/sql/006-add-workflow-action.sql#L5-L20)

@@ -77,9 +77,10 @@ import {
   CreateOutline,
   GitNetworkOutline,
   CloudUploadOutline,
-  TrashOutline
+  TrashOutline,
+  EyeOutline
 } from '@vicons/ionicons5'
-import { listTemplates, publishTemplate, deleteTemplate } from '@/api/formTemplate'
+import { listTemplates, publishTemplate, deleteTemplate, upgradeTemplate } from '@/api/formTemplate'
 import { getCountries } from '@/api/basic'
 
 const router = useRouter()
@@ -90,6 +91,35 @@ const list = ref([])
 const total = ref(0)
 const countries = ref([])
 const query = reactive({ page: 1, size: 10, countryCode: null, serviceCodeL3: '' })
+
+async function handleView(row) {
+  router.push(`/template/workflow-designer/${row.id}?mode=view`)
+}
+
+async function handleEdit(row) {
+  if (row.status === 1 || row.status === 2) {
+    // 已发布或已弃用的模板，执行升级逻辑
+    const actionText = row.status === 1 ? '修改将创建一个新的版本' : '该版本已弃用，修改将创建一个新的版本'
+    dialog.info({
+      title: '版本升级',
+      content: `模板 "${row.templateName}" ${actionText}。确认继续吗？`,
+      positiveText: '确认升级',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        try {
+          const res = await upgradeTemplate(row.id)
+          message.success('已创建新版本，正在跳转设计器...')
+          router.push(`/template/workflow-designer/${res.data.id}`)
+        } catch (err) {
+          message.error('升级失败: ' + (err.message || '未知错误'))
+        }
+      }
+    })
+  } else {
+    // 草稿状态，直接进入设计器
+    router.push(`/template/workflow-designer/${row.id}`)
+  }
+}
 
 // 服务类目映射 (简化显示)
 const SERVICE_NAME_MAP = {
@@ -192,11 +222,22 @@ const columns = [
     title: '状态',
     key: 'status',
     width: 100,
-    render: (row) => h(NTag, {
-      type: row.status === 1 ? 'success' : 'warning',
-      round: true,
-      bordered: false
-    }, { default: () => row.status === 1 ? '已发布' : '草稿' })
+    render: (row) => {
+      let type = 'warning'
+      let label = '草稿'
+      if (row.status === 1) {
+        type = 'success'
+        label = '已发布'
+      } else if (row.status === 2) {
+        type = 'default'
+        label = '已弃用'
+      }
+      return h(NTag, {
+        type,
+        round: true,
+        bordered: false
+      }, { default: () => label })
+    }
   },
   {
     title: '操作',
@@ -208,11 +249,20 @@ const columns = [
         h(NButton, {
           size: 'small',
           quaternary: true,
-          type: 'primary',
-          onClick: () => goWorkflow(row.id)
+          type: 'info',
+          onClick: () => handleView(row)
         }, { 
-          default: () => '流程',
-          icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) })
+          default: () => '查看',
+          icon: () => h(NIcon, null, { default: () => h(EyeOutline) })
+        }),
+        h(NButton, {
+          size: 'small',
+          quaternary: true,
+          type: 'primary',
+          onClick: () => handleEdit(row)
+        }, { 
+          default: () => '编辑',
+          icon: () => h(NIcon, null, { default: () => h(CreateOutline) })
         }),
         row.status === 0 ? h(NButton, {
           size: 'small',
