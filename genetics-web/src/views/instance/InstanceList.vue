@@ -307,7 +307,7 @@ function handleWorkflowAction(instanceId, action) {
 
 async function doTransition(instanceId, action, remark) {
   try {
-    await executeTransition(instanceId, action, remark)
+    await executeTransition(instanceId, { action, remark })
     message.success('操作成功')
     fetchList() // 刷新列表以获取最新状态和可用动作
   } catch (error) {
