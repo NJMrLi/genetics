@@ -15,9 +15,18 @@
 - [FormInstanceServiceImpl.java](file://genetics-server/src/main/java/com/genetics/service/impl/FormInstanceServiceImpl.java)
 - [WorkflowDesigner.vue](file://genetics-web/src/views/template/WorkflowDesigner.vue)
 - [WorkflowConfig.vue](file://genetics-web/src/components/FormDesigner/WorkflowConfig.vue)
+- [WorkflowFormModal.vue](file://genetics-web/src/components/FormDesigner/WorkflowFormModal.vue)
+- [TemplateList.vue](file://genetics-web/src/views/template/TemplateList.vue)
 - [formTemplate.js](file://genetics-web/src/api/formTemplate.js)
 - [004-add-workflow-config.sql](file://genetics-server/src/main/resources/db/changelog/sql/004-add-workflow-config.sql)
 </cite>
+
+## 更新摘要
+**变更内容**
+- 新增模板版本升级功能，支持草稿/发布/废弃状态管理
+- 增强工作流配置设计器，支持只读模式和查看功能
+- 扩展模板列表界面，增加状态显示和查看功能
+- 新增/upgrade API接口用于版本升级操作
 
 ## 目录
 1. [简介](#简介)
@@ -34,11 +43,12 @@
 ## 简介
 本文件面向服务单模板管理API的完整使用与实现说明，涵盖模板的创建/保存、查询列表、查询详情、更新以及发布等全流程。重点解释以下核心概念：
 - JSON Schema 的布局与控件引用机制
-- 模板状态管理（草稿/发布）
-- 版本控制策略
+- 模板状态管理（草稿/发布/废弃）
+- 版本控制策略与升级机制
 - 国家代码与服务类型三级联动
 - 控件与模板的解耦设计与运行时渲染
 - **新增：模板级工作流配置管理** - 支持通过可视化设计器配置模板的业务流程状态流转规则
+- **新增：版本升级功能** - 支持模板版本控制和状态管理，确保历史数据稳定性
 
 同时提供接口规范、请求/响应示例、错误处理建议与最佳实践，帮助开发者快速理解并正确集成。
 
@@ -73,7 +83,7 @@ K --> G
 ```
 
 **图表来源**
-- [FormTemplateController.java:1-63](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L1-L63)
+- [FormTemplateController.java:1-71](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L1-L71)
 - [WorkflowActionController.java:1-32](file://genetics-server/src/main/java/com/genetics/controller/WorkflowActionController.java#L1-L32)
 
 **章节来源**
@@ -82,15 +92,16 @@ K --> G
 ## 核心组件
 - 数据模型
   - 自定义控件表：定义控件元数据（名称、类型、校验规则、默认值、上传配置等），用于模板画板拖拽与运行时渲染。
-  - 服务单模板表：存储模板名称、版本、国家代码、服务三级编码、JSON Schema布局与控件引用、状态（草稿/发布）、**工作流配置**。
+  - 服务单模板表：存储模板名称、版本、国家代码、服务三级编码、JSON Schema布局与控件引用、状态（草稿/发布/废弃）、**工作流配置**。
   - 服务单实例表：基于模板创建的实例，存储表单数据（Map<controlKey, value>序列化）、状态（草稿/已提交/已审核）、**业务状态（ServeState）**。
   - **新增：工作流配置实体**：TemplateWorkflowConfig、WorkflowTransition、WorkflowAction，支持模板级业务流程配置。
 - 核心算法
   - FormDataConverter：将 Map<controlKey, value> 按 ClassName 分组并通过反射转换为业务实体对象，供提交阶段使用。
   - **新增：TemplateWorkflowServiceImpl**：实现模板工作流配置的获取、验证和执行状态流转。
+  - **新增：版本升级逻辑**：FormTemplateServiceImpl中的upgrade方法实现模板版本控制和状态管理。
 - 接口体系
   - 自定义控件API：创建、查询列表、更新、删除。
-  - 服务单模板API：创建/保存、查询列表、查询详情、更新、发布。
+  - 服务单模板API：创建/保存、查询列表、查询详情、更新、发布、**版本升级**。
   - 服务单实例API：根据模板创建实例、保存草稿、提交、查询列表、**状态流转**。
   - 服务类目API：透传既存系统的一级/二级/三级联动。
   - **新增：工作流动作API**：工作流动作的增删改查，支持模板级工作流配置。
@@ -100,14 +111,14 @@ K --> G
 - [VAT_EPR_动态表单技术方案.md: 592-728:592-728](file://VAT_EPR_动态表单技术方案.md#L592-L728)
 
 ## 架构总览
-服务单模板API贯穿"模板设计—模板发布—实例创建—数据提交—工作流流转"的完整链路。模板设计阶段通过控件列表与画板生成JSON Schema；发布后模板不可再修改布局，保障历史实例数据一致性；实例创建时携带模板Schema与控件详情，前端按Schema动态渲染表单；填写完成后保存草稿或提交，提交阶段触发数据转换与状态更新；**新增的工作流配置支持通过可视化设计器配置模板的业务流程，实例可在不同业务状态下执行相应的工作流操作**。
+服务单模板API贯穿"模板设计—模板发布—实例创建—数据提交—工作流流转"的完整链路。模板设计阶段通过控件列表与画板生成JSON Schema；发布后模板不可再修改布局，保障历史实例数据一致性；实例创建时携带模板Schema与控件详情，前端按Schema动态渲染表单；填写完成后保存草稿或提交，提交阶段触发数据转换与状态更新；**新增的工作流配置支持通过可视化设计器配置模板的业务流程，实例可在不同业务状态下执行相应的工作流操作**。**新增的版本升级功能确保模板修改不影响历史实例，通过版本号管理实现模板演进**。
 
 ```mermaid
 sequenceDiagram
 participant Admin as "管理员"
 participant FE as "前端"
 participant API as "后端API"
-participant DB as "数据库"
+participant DB as "数据库
 Admin->>FE : 打开模板设计器
 FE->>API : GET /api/form-control/list
 API-->>FE : 返回控件列表
@@ -126,13 +137,19 @@ DB-->>API : 成功
 API-->>FE : 返回配置成功
 Admin->>FE : 选择模板并点击发布
 FE->>API : POST /api/form-template/{id}/publish
-API->>DB : 更新状态=发布
+API->>DB : 更新状态=发布，旧版本标记为废弃
 DB-->>API : 成功
 API-->>FE : 返回发布成功
+Admin->>FE : 需要修改已发布模板
+FE->>API : POST /api/form-template/{id}/upgrade
+API->>DB : 创建新版本(状态=草稿)，保留旧版本
+DB-->>API : 成功
+API-->>FE : 返回新版本ID
+FE->>Admin : 进入新版本编辑
 ```
 
 **图表来源**
-- [FormTemplateController.java:25-41](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L25-L41)
+- [FormTemplateController.java:43-47](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L43-L47)
 - [WorkflowDesigner.vue:61-79](file://genetics-web/src/views/template/WorkflowDesigner.vue#L61-L79)
 
 **章节来源**
@@ -155,11 +172,12 @@ API-->>FE : 返回发布成功
 
 - 查询模板列表
   - 方法与路径：GET /api/form-template/list
-  - 查询参数：countryCode、serviceCodeL3、page、size
+  - 查询参数：countryCode、serviceCodeL3、page、size、status、latestOnly
   - 响应：分页结构，包含total与records
   - 状态码：200 成功；400 参数错误；500 服务器异常
   - 错误处理：参数校验与分页边界检查
-  - 来源：[FormTemplateController.java:54-61](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L54-L61)
+  - **新增参数**：status（状态过滤）、latestOnly（最新版本过滤）
+  - 来源：[FormTemplateController.java:60-69](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L60-L69)
 
 - 查询模板详情
   - 方法与路径：GET /api/form-template/{id}
@@ -167,7 +185,7 @@ API-->>FE : 返回发布成功
   - 响应：包含模板基础信息与controlDetails（控件详情数组）、**workflowConfig（工作流配置）**
   - 状态码：200 成功；404 未找到；500 服务器异常
   - 错误处理：模板不存在、权限校验（如有）
-  - 来源：[FormTemplateController.java:49-52](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L49-L52)
+  - 来源：[FormTemplateController.java:55-58](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L55-L58)
 
 - 更新模板
   - 方法与路径：PUT /api/form-template/{id}
@@ -175,6 +193,7 @@ API-->>FE : 返回发布成功
   - 请求体字段：同创建接口（除状态字段）、**新增workflowConfig字段**
   - 状态码：200 成功；400 参数错误；500 服务器异常
   - 错误处理：发布后禁止修改布局（建议）
+  - **新增限制**：已发布的模板不可直接修改，需先升级版本
   - 来源：[FormTemplateController.java:31-35](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L31-L35)
 
 - 发布模板
@@ -183,7 +202,17 @@ API-->>FE : 返回发布成功
   - 响应：统一返回结构
   - 状态码：200 成功；400 参数错误；500 服务器异常
   - 错误处理：发布前校验模板状态、必要字段完整性
+  - **新增行为**：发布时自动将同业务下的旧版本标记为废弃状态
   - 来源：[FormTemplateController.java:37-41](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L37-L41)
+
+- **新增：版本升级**
+  - 方法与路径：POST /api/form-template/{id}/upgrade
+  - 路径参数：id
+  - 响应：包含新版本ID的JSON对象
+  - 状态码：200 成功；400 参数错误；500 服务器异常
+  - 错误处理：复制现有模板信息，生成新版本，版本号自增
+  - **新增功能**：支持模板版本控制，确保历史数据稳定性
+  - 来源：[FormTemplateController.java:43-47](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L43-L47)
 
 **章节来源**
 - [VAT_EPR_动态表单技术方案.md: 225-302:225-302](file://VAT_EPR_动态表单技术方案.md#L225-L302)
@@ -221,6 +250,11 @@ API-->>FE : 返回发布成功
 - 实例状态流转
   - GET /api/form-instance/{id}/available-actions：获取实例可用操作列表
   - POST /api/form-instance/{id}/transition：执行状态流转
+
+#### **新增：工作流配置设计器增强**
+- **只读模式支持**：WorkflowConfig组件支持readonly属性，用于查看模式
+- **查看功能**：TemplateList组件增加查看按钮，支持只读模式查看模板详情
+- **状态显示**：模板列表增加状态标签，清晰显示草稿/发布/废弃状态
 
 **章节来源**
 - [TemplateWorkflowConfig.java:1-100](file://genetics-server/src/main/java/com/genetics/entity/workflow/TemplateWorkflowConfig.java#L1-L100)
@@ -329,12 +363,15 @@ WORKFLOW_ACTION ||--o{ WORKFLOW_TRANSITION : "定义可用操作"
 - 状态
   - 草稿：可编辑、可删除
   - 发布：不可修改布局，可作为实例创建的来源
+  - **新增：废弃**：已发布但被新版本替代的模板状态
 - 版本控制
   - 版本号字段用于区分相同模板的不同版本
   - 发布后若需变更布局，应新建版本，避免影响已有实例
+  - **新增：版本升级机制**：通过/upgrade接口创建新版本，保持旧版本可用
 - 业务约束
   - 发布前校验模板完整性
   - 实例创建时携带模板版本，便于回溯与审计
+  - **新增：版本号自增逻辑**：支持语义化版本号管理
 - **新增：工作流配置状态**
   - 工作流配置随模板一起发布，实例创建时自动继承模板的工作流配置
 
@@ -399,14 +436,22 @@ FE-->>Operator : 提交成功
   - 连线配置：选择预设操作、设置适用条件、是否需要备注、关联业务表单
   - 快速加载：默认流程、VAT流程、EPR流程预设
   - JSON导出：实时查看和编辑工作流配置JSON
+- **新增：只读模式**
+  - WorkflowConfig组件支持readonly属性
+  - WorkflowDesigner支持查看模式（mode=view）
+  - WorkflowFormModal支持只读模式查看表单
+- **新增：查看功能**
+  - TemplateList组件增加查看按钮
+  - 支持只读模式查看模板详情和工作流配置
 - 配置项说明
   - 状态节点：支持配置是否允许在此状态下终止流程
   - 连线属性：操作代码、操作名称、适用条件（VAT/EPR/通用）、是否需要备注、关联表单
   - 预设动作：从工作流动作表中获取可用操作列表
 
 **章节来源**
-- [WorkflowDesigner.vue:1-145](file://genetics-web/src/views/template/WorkflowDesigner.vue#L1-L145)
-- [WorkflowConfig.vue:1-774](file://genetics-web/src/components/FormDesigner/WorkflowConfig.vue#L1-L774)
+- [WorkflowDesigner.vue:1-173](file://genetics-web/src/views/template/WorkflowDesigner.vue#L1-L173)
+- [WorkflowConfig.vue:1-806](file://genetics-web/src/components/FormDesigner/WorkflowConfig.vue#L1-L806)
+- [WorkflowFormModal.vue:1-157](file://genetics-web/src/components/FormDesigner/WorkflowFormModal.vue#L1-L157)
 
 ## 依赖关系分析
 - 控制器依赖服务层，服务层依赖数据访问层与实体/DTO
@@ -415,6 +460,7 @@ FE-->>Operator : 提交成功
 - 提交阶段依赖 FormDataConverter 进行数据对象化
 - **新增：工作流服务依赖模板服务获取配置，实例服务依赖工作流服务执行状态流转**
 - **新增：工作流动作服务提供预设操作配置**
+- **新增：版本升级功能依赖模板服务的升级逻辑**
 
 ```mermaid
 classDiagram
@@ -434,6 +480,7 @@ class TemplateWorkflowServiceImpl
 class WorkflowActionController
 class WorkflowActionService
 class WorkflowAction
+class FormTemplateServiceImpl
 FormTemplateController --> FormTemplateService : "依赖"
 FormTemplateService --> FormTemplateMapper : "依赖"
 FormTemplateService --> FormTemplate : "使用"
@@ -449,10 +496,12 @@ TemplateWorkflowService --> TemplateWorkflowServiceImpl : "实现"
 WorkflowActionController --> WorkflowActionService : "依赖"
 WorkflowActionService --> WorkflowAction : "管理"
 FormDataConverter --> FormInstance : "生成对象"
+FormTemplateServiceImpl --> FormTemplateService : "实现"
+FormTemplateController --> FormTemplateServiceImpl : "使用"
 ```
 
 **图表来源**
-- [FormTemplateController.java:1-63](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L1-L63)
+- [FormTemplateController.java:1-71](file://genetics-server/src/main/java/com/genetics/controller/FormTemplateController.java#L1-L71)
 - [FormInstanceController.java:1-136](file://genetics-server/src/main/java/com/genetics/controller/FormInstanceController.java#L1-L136)
 - [TemplateWorkflowServiceImpl.java:1-207](file://genetics-server/src/main/java/com/genetics/service/impl/TemplateWorkflowServiceImpl.java#L1-L207)
 - [WorkflowActionController.java:1-32](file://genetics-server/src/main/java/com/genetics/controller/WorkflowActionController.java#L1-L32)
@@ -467,7 +516,8 @@ FormDataConverter --> FormInstance : "生成对象"
 - 实例查询：对模板ID、状态、创建时间建立索引，提升筛选效率
 - 提交转换：批量提交时注意内存占用，避免一次性处理过大实例
 - **新增：工作流配置缓存**：工作流配置相对稳定，可考虑缓存以减少数据库查询
-- **新增：状态流转验证**：工作流验证逻辑应高效，避免在高频操作中造成性能瓶颈
+- **新增：版本升级性能**：版本升级操作相对轻量，但需注意数据库事务处理
+- **新增：状态流转验证**：工作流验证逻辑应高效，避免在高频操作中造成性能瓶颈**
 
 ## 故障排查指南
 - 控件唯一性校验失败
@@ -486,6 +536,10 @@ FormDataConverter --> FormInstance : "生成对象"
   - 现象：多人同时保存草稿导致数据丢失
   - 排查：实例保存时增加乐观锁（version字段）
   - 来源：[VAT_EPR_动态表单技术方案.md: 869](file://VAT_EPR_动态表单技术方案.md#L869)
+- **新增：版本升级失败**
+  - 现象：/upgrade接口调用失败
+  - 排查：确认模板存在且状态正常，检查版本号格式
+  - 来源：[FormTemplateServiceImpl.java:82-107](file://genetics-server/src/main/java/com/genetics/service/impl/FormTemplateServiceImpl.java#L82-L107)
 - **新增：工作流配置加载失败**
   - 现象：模板详情无法显示工作流配置
   - 排查：检查数据库中workflow_config字段是否存在，JSON格式是否正确
@@ -499,21 +553,25 @@ FormDataConverter --> FormInstance : "生成对象"
 - [VAT_EPR_动态表单技术方案.md: 856-869:856-869](file://VAT_EPR_动态表单技术方案.md#L856-L869)
 
 ## 结论
-服务单模板API通过"控件—模板—实例"的三层解耦设计，实现了高度灵活的表单可视化构建与运行时渲染。模板状态与版本控制确保历史数据稳定，JSON Schema 描述布局与控件引用，结合前端动态渲染与后端对象转换，形成完整的业务闭环。**新增的工作流配置功能通过可视化设计器支持模板级业务流程管理，实例可在不同业务状态下执行相应的工作流操作，大大提升了系统的业务灵活性和可维护性**。建议在生产环境中完善权限控制、并发保护与监控告警，持续优化查询与转换性能。
+服务单模板API通过"控件—模板—实例"的三层解耦设计，实现了高度灵活的表单可视化构建与运行时渲染。模板状态与版本控制确保历史数据稳定，JSON Schema 描述布局与控件引用，结合前端动态渲染与后端对象转换，形成完整的业务闭环。**新增的工作流配置功能通过可视化设计器支持模板级业务流程管理，实例可在不同业务状态下执行相应的工作流操作，大大提升了系统的业务灵活性和可维护性**。**新增的版本升级功能确保模板修改不影响历史实例，通过版本号管理实现模板演进，配合只读模式的查看功能，为用户提供了完整的模板生命周期管理体验**。建议在生产环境中完善权限控制、并发保护与监控告警，持续优化查询与转换性能。
 
 ## 附录
 - 请求/响应示例与最佳实践
   - 创建/保存模板：请求体包含模板基础信息与完整 JSON Schema；响应统一返回模板ID；**新增workflowConfig字段**
-  - 查询列表：支持按国家与服务三级编码筛选；分页参数 page/size
+  - 查询列表：支持按国家与服务三级编码筛选；分页参数 page/size；**新增状态过滤与最新版本过滤**
   - 查询详情：返回模板基础信息与控件详情数组，便于前端渲染；**新增workflowConfig字段**
-  - 更新模板：除状态外均可更新；发布后建议新建版本再修改布局；**新增workflowConfig字段**
-  - 发布模板：发布前校验完整性；发布后禁止修改布局
+  - 更新模板：除状态外均可更新；发布后建议新建版本再修改布局；**新增版本升级机制**
+  - 发布模板：发布前校验完整性；发布后自动标记同业务旧版本为废弃状态
+  - **新增：版本升级**
+    - /upgrade接口：创建新版本，保持旧版本可用；版本号自动递增
+    - 支持草稿状态直接升级，已发布/废弃状态通过升级创建新版本
   - 提交实例：提交时将 Map<controlKey, value> 传回后端，后端转换为实体对象并更新状态；**新增自动触发工作流状态流转**
   - **新增：工作流配置**
     - 工作流动作管理：支持增删改查工作流动作，用于模板级配置
     - 状态流转：支持获取实例可用操作列表，执行状态流转
     - 可视化设计器：通过拖拽方式配置状态节点和流转规则
-  - 最佳实践：控件命名规范、版本管理策略、上传控件的文件服务对接、敏感字段过滤与并发控制、**工作流配置的标准化管理**
+    - **新增：只读模式**：支持查看模式，WorkflowConfig组件支持readonly属性
+  - 最佳实践：控件命名规范、版本管理策略、上传控件的文件服务对接、敏感字段过滤与并发控制、**工作流配置的标准化管理、版本升级的业务流程规范**
 
 **章节来源**
 - [VAT_EPR_动态表单技术方案.md: 225-302:225-302](file://VAT_EPR_动态表单技术方案.md#L225-L302)
