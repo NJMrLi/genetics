@@ -19,6 +19,8 @@ import com.genetics.mapper.FormInstanceMapper;
 import com.genetics.mapper.FormTemplateMapper;
 import com.genetics.service.FormInstanceService;
 import com.genetics.service.TemplateWorkflowService;
+import com.genetics.workflow.WorkflowActionDispatcher;
+import com.genetics.workflow.action.WorkflowActionResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,7 @@ public class FormInstanceServiceImpl implements FormInstanceService {
     private final FormDataConverter formDataConverter;
     private final ObjectMapper objectMapper;
     private final TemplateWorkflowService templateWorkflowService;
+    private final WorkflowActionDispatcher actionDispatcher;
 
     @Override
     public FormInstanceDetailVO create(FormInstanceCreateDTO dto) {
@@ -97,50 +100,14 @@ public class FormInstanceServiceImpl implements FormInstanceService {
     }
 
     @Override
-    public Map<String, Object> submit(Long id) {
+    public void updateOrderStatus(Long id, Integer orderStatusId) {
+        ServeState state = ServeState.getServeStateById(orderStatusId);
+        if (state == null) {
+            throw new IllegalArgumentException("无效的业务状态ID: " + orderStatusId);
+        }
         FormInstance instance = requireExist(id);
-        
-        // 允许重新提交：只要业务状态是 待提交(10) 或 已驳回(50) 
-        boolean isCanSubmit = instance.getOrderStatusId() == 10 || instance.getOrderStatusId() == 50;
-        if (!isCanSubmit && instance.getStatus() >= InstanceStatus.SUBMITTED.getCode()) {
-            throw new IllegalArgumentException("当前业务状态不支持提交操作");
-        }
-        
-        // 解析 formData
-        Map<String, Object> formData;
-        try {
-            formData = objectMapper.readValue(instance.getFormData(),
-                    new TypeReference<Map<String, Object>>() {});
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("表单数据解析失败", e);
-        }
-
-        // 转换为业务实体对象
-        Map<String, Object> converted = formDataConverter.convert(formData);
-
-        // TODO: 在此处添加提交后的业务逻辑处理
-        // 例如：同步数据到 ERP 系统、发送通知邮件、触发第三方 API 等
-        log.info("【业务逻辑TODO】开始处理服务单 {} 的提交后续逻辑...", id);
-
-        // 触发工作流状态流转：提交 (submit)
-        Integer newStatus = templateWorkflowService.doInstanceTransition(instance, "submit");
-        instance.setOrderStatusId(newStatus);
-
-        // 打印转换结果日志
-        converted.forEach((className, obj) -> {
-            try {
-                log.info("【表单提交转换结果】{}: {}", className, objectMapper.writeValueAsString(obj));
-            } catch (JsonProcessingException e) {
-                log.info("【表单提交转换结果】{}: {}", className, obj);
-            }
-        });
-
-        // 更新状态
-        instance.setStatus(InstanceStatus.SUBMITTED.getCode());
-        instance.setSubmitTime(LocalDateTime.now());
+        instance.setOrderStatusId(orderStatusId);
         formInstanceMapper.updateById(instance);
-
-        return converted;
     }
 
     @Override
@@ -154,23 +121,14 @@ public class FormInstanceServiceImpl implements FormInstanceService {
     }
 
     @Override
-    public void updateOrderStatus(Long id, Integer orderStatusId) {
-        ServeState state = ServeState.getServeStateById(orderStatusId);
-        if (state == null) {
-            throw new IllegalArgumentException("无效的业务状态ID: " + orderStatusId);
-        }
-        FormInstance instance = requireExist(id);
-        instance.setOrderStatusId(orderStatusId);
-        formInstanceMapper.updateById(instance);
-    }
-
-    @Override
     public void executeTransition(Long id, WorkflowTransitionRequestDTO request) {
         FormInstance instance = requireExist(id);
-        String action = request.getAction();
         
-        // 使用工作流服务验证并执行状态流转
-        Integer newStatus = templateWorkflowService.doInstanceTransition(instance, action);
+        // 使用分发器执行动作
+        WorkflowActionResult result = actionDispatcher.dispatch(id, request);
+        
+        // 更新实例状态
+        instance.setOrderStatusId(result.getNewStatus());
         
         // 动作相关的表单数据合并 (如果有)
         if (request.getActionFormData() != null && !request.getActionFormData().isEmpty()) {
@@ -182,22 +140,6 @@ public class FormInstanceServiceImpl implements FormInstanceService {
                 log.error("合并表单数据失败", e);
             }
         }
-
-        // 更新状态
-        instance.setOrderStatusId(newStatus);
-        
-        // 如果是提交操作，同时更新提交状态和时间
-        if ("submit".equals(action) || "resubmit".equals(action)) {
-            instance.setStatus(InstanceStatus.SUBMITTED.getCode());
-            instance.setSubmitTime(LocalDateTime.now());
-        }
-        
-        // 如果是驳回操作，重置逻辑状态为草稿
-        if ("auditReject".equals(action)) {
-            instance.setStatus(InstanceStatus.DRAFT.getCode());
-        }
-        
-        // TODO: 可以添加操作日志记录，记录 remark
         
         formInstanceMapper.updateById(instance);
     }

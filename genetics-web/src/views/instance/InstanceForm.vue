@@ -199,7 +199,7 @@ import DynamicForm from '@/components/DynamicForm/DynamicForm.vue'
 import { 
   getInstance, 
   saveInstance, 
-  submitInstance, 
+  executeAction,
   getOrderStatusOptions, 
   getAvailableActions, 
   executeTransition 
@@ -488,7 +488,7 @@ async function confirmSubmit() {
           })
           
           // 3. 执行提交（更新状态及触发业务逻辑）
-          await submitInstance(instanceId)
+          await executeAction(instanceId, { action: 'submit' })
           
           message.success('提交成功')
           goBack() // 返回列表并触发刷新

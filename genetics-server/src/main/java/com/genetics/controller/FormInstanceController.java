@@ -11,6 +11,8 @@ import com.genetics.entity.workflow.WorkflowTransition;
 import com.genetics.enums.ServeState;
 import com.genetics.service.FormInstanceService;
 import com.genetics.service.TemplateWorkflowService;
+import com.genetics.workflow.WorkflowActionDispatcher;
+import com.genetics.workflow.action.WorkflowActionResult;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +32,7 @@ public class FormInstanceController {
 
     private final FormInstanceService formInstanceService;
     private final TemplateWorkflowService templateWorkflowService;
+    private final WorkflowActionDispatcher actionDispatcher;
 
     /**
      * 根据模板创建服务单实例
@@ -57,14 +60,21 @@ public class FormInstanceController {
         formInstanceService.updateOrderStatus(id, orderStatusId);
         return Result.success();
     }
-
+    
     /**
-     * 提交服务单（触发表单数据 → 实体对象转换）
+     * 统一动作执行接口
+     * 通过 action 参数分发到对应插件执行
+     * 
+     * @param id 服务单实例ID
+     * @param request 动作执行请求 (包含 action code, remark, formData)
+     * @return 动作执行结果
      */
-    @PostMapping("/{id}/submit")
-    public Result<Map<String, Object>> submit(@PathVariable Long id) {
-        Map<String, Object> converted = formInstanceService.submit(id);
-        return Result.success(converted);
+    @PostMapping("/{id}/execute")
+    public Result<WorkflowActionResult> executeAction(
+            @PathVariable Long id,
+            @RequestBody WorkflowTransitionRequestDTO request) {
+        WorkflowActionResult result = actionDispatcher.dispatch(id, request);
+        return Result.success(result);
     }
 
     /**

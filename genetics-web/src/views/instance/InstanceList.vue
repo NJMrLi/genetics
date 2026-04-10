@@ -91,7 +91,7 @@ import { SearchOutline, AddOutline, CreateOutline, EyeOutline, SendOutline, Flas
 import { 
   listInstances, 
   createInstance, 
-  submitInstance, 
+  executeAction,
   getOrderStatusOptions,
   getAvailableActions,
   executeTransition
@@ -354,7 +354,7 @@ async function handleCreate() {
 }
 
 async function handleSubmit(id) {
-  await submitInstance(id)
+  await executeAction(id, { action: 'submit' })
   message.success('提交成功')
   fetchList()
 }

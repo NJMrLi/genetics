@@ -32,6 +32,11 @@ mybatis-plus:
 logging:
   level:
     com.genetics: debug
+    org.pf4j: info
+
+workflow:
+  plugin:
+    dir: plugins
 
 springdoc:
   swagger-ui:

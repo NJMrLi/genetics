@@ -25,8 +25,6 @@ public interface FormInstanceService {
      */
     void executeTransition(Long id, WorkflowTransitionRequestDTO request);
 
-    Map<String, Object> submit(Long id);
-
     FormInstanceDetailVO getDetailById(Long id);
 
     Page<FormInstance> page(int pageNum, int pageSize, Integer status, Integer orderStatusId);

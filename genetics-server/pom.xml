@@ -24,6 +24,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
         <liquibase.version>4.25.1</liquibase.version>
+        <pf4j.version>3.10.0</pf4j.version>
     </properties>
 
     <dependencies>
@@ -79,6 +80,13 @@
             <groupId>org.liquibase</groupId>
             <artifactId>liquibase-core</artifactId>
             <version>${liquibase.version}</version>
+        </dependency>
+
+        <!-- PF4J Plugin Framework -->
+        <dependency>
+            <groupId>org.pf4j</groupId>
+            <artifactId>pf4j</artifactId>
+            <version>${pf4j.version}</version>
         </dependency>
     </dependencies>
 
