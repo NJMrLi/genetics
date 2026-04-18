@@ -11,11 +11,16 @@ import com.genetics.workflow.action.WorkflowActionContext;
 import com.genetics.workflow.action.WorkflowActionPlugin;
 import com.genetics.workflow.action.WorkflowActionResult;
 import com.genetics.converter.FormDataConverter;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 工作流动作分发器
@@ -33,7 +38,7 @@ public class WorkflowActionDispatcher {
     private final ObjectMapper objectMapper;
 
     /**
-     * 分发动作到对应插件执行
+     * 分发动作到对应插件执行,并更新数据库
      */
     @Transactional(rollbackFor = Exception.class)
     public WorkflowActionResult dispatch(Long instanceId, WorkflowTransitionRequestDTO request) {
@@ -77,6 +82,22 @@ public class WorkflowActionDispatcher {
             throw new BusinessException(result.getMessage());
         }
         
+        // 8. 更新实例状态到数据库
+        instance.setOrderStatusId(result.getNewStatus());
+        
+        // 动作相关的表单数据合并 (如果有)
+        if (request.getActionFormData() != null && !request.getActionFormData().isEmpty()) {
+            Map<String, Object> currentData = parseFormData(instance.getFormData());
+            currentData.putAll(request.getActionFormData());
+            try {
+                instance.setFormData(objectMapper.writeValueAsString(currentData));
+            } catch (Exception e) {
+                log.error("合并表单数据失败", e);
+            }
+        }
+        
+        formInstanceMapper.updateById(instance);
+        
         return result;
     }
 
@@ -95,5 +116,20 @@ public class WorkflowActionDispatcher {
                 .formDataConverter(formDataConverter)
                 .objectMapper(objectMapper)
                 .build();
+    }
+    
+    /**
+     * 解析表单数据
+     */
+    private Map<String, Object> parseFormData(String formDataJson) {
+        try {
+            if (formDataJson == null || formDataJson.isBlank()) {
+                return new HashMap<>();
+            }
+            return objectMapper.readValue(formDataJson, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException e) {
+            log.warn("解析表单数据失败", e);
+            return new HashMap<>();
+        }
     }
 }

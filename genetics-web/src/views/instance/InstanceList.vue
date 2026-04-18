@@ -87,14 +87,13 @@ import {
   useMessage,
   useDialog
 } from 'naive-ui'
-import { SearchOutline, AddOutline, CreateOutline, EyeOutline, SendOutline, FlashOutline } from '@vicons/ionicons5'
+import { SearchOutline, AddOutline, CreateOutline, EyeOutline, FlashOutline } from '@vicons/ionicons5'
 import { 
   listInstances, 
   createInstance, 
   executeAction,
   getOrderStatusOptions,
-  getAvailableActions,
-  executeTransition
+  getAvailableActions
 } from '@/api/formInstance'
 import { listTemplates } from '@/api/formTemplate'
 
@@ -307,7 +306,7 @@ function handleWorkflowAction(instanceId, action) {
 
 async function doTransition(instanceId, action, remark) {
   try {
-    await executeTransition(instanceId, { action, remark })
+    await executeAction(instanceId, { action, remark })
     message.success('操作成功')
     fetchList() // 刷新列表以获取最新状态和可用动作
   } catch (error) {
@@ -351,12 +350,6 @@ async function handleCreate() {
   } finally {
     creating.value = false
   }
-}
-
-async function handleSubmit(id) {
-  await executeAction(id, { action: 'submit' })
-  message.success('提交成功')
-  fetchList()
 }
 
 onMounted(() => {

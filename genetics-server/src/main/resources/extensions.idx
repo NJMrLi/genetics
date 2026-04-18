@@ -2,3 +2,8 @@ com.genetics.workflow.actions.SubmitActionPlugin
 com.genetics.workflow.actions.AuditPassActionPlugin
 com.genetics.workflow.actions.AuditRejectActionPlugin
 com.genetics.workflow.actions.ResubmitActionPlugin
+com.genetics.workflow.actions.SubmitLocalActionPlugin
+com.genetics.workflow.actions.SubmitTaxActionPlugin
+com.genetics.workflow.actions.SubmitOrgActionPlugin
+com.genetics.workflow.actions.CompleteActionPlugin
+com.genetics.workflow.actions.TerminateActionPlugin

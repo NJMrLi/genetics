@@ -15,9 +15,6 @@ public interface FormInstanceService {
 
     void save(Long id, FormInstanceSaveDTO dto);
 
-    /** 单独更新业务状态 */
-    void updateOrderStatus(Long id, Integer orderStatusId);
-
     /**
      * 执行状态流转
      * @param id 实例ID

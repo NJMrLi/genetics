@@ -50,16 +50,6 @@ public class FormInstanceController {
         formInstanceService.save(id, dto);
         return Result.success();
     }
-
-    /**
-     * 单独更新业务状态
-     */
-    @PutMapping("/{id}/order-status")
-    public Result<Void> updateOrderStatus(@PathVariable Long id,
-                                          @RequestParam Integer orderStatusId) {
-        formInstanceService.updateOrderStatus(id, orderStatusId);
-        return Result.success();
-    }
     
     /**
      * 统一动作执行接口
@@ -73,6 +63,7 @@ public class FormInstanceController {
     public Result<WorkflowActionResult> executeAction(
             @PathVariable Long id,
             @RequestBody WorkflowTransitionRequestDTO request) {
+        // Dispatcher 内部会更新数据库
         WorkflowActionResult result = actionDispatcher.dispatch(id, request);
         return Result.success(result);
     }
@@ -121,16 +112,6 @@ public class FormInstanceController {
         List<WorkflowTransition> actions = templateWorkflowService.getInstanceAvailableActions(
                 convertToEntity(vo));
         return Result.success(actions);
-    }
-
-    /**
-     * 执行状态流转
-     */
-    @PostMapping("/{id}/transition")
-    public Result<Void> executeTransition(@PathVariable Long id,
-                                          @RequestBody WorkflowTransitionRequestDTO request) {
-        formInstanceService.executeTransition(id, request);
-        return Result.success();
     }
 
     private FormInstance convertToEntity(FormInstanceDetailVO vo) {

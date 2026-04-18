@@ -29,6 +29,11 @@ public class WorkflowTransition {
     private String actionName;
 
     /**
+     * 操作图标 (emoji 或 icon 名称)
+     */
+    private String icon;
+
+    /**
      * 是否需要填写备注/原因
      */
     private Boolean needRemark;

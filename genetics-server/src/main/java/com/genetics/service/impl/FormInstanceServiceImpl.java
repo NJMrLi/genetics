@@ -100,17 +100,6 @@ public class FormInstanceServiceImpl implements FormInstanceService {
     }
 
     @Override
-    public void updateOrderStatus(Long id, Integer orderStatusId) {
-        ServeState state = ServeState.getServeStateById(orderStatusId);
-        if (state == null) {
-            throw new IllegalArgumentException("无效的业务状态ID: " + orderStatusId);
-        }
-        FormInstance instance = requireExist(id);
-        instance.setOrderStatusId(orderStatusId);
-        formInstanceMapper.updateById(instance);
-    }
-
-    @Override
     public FormInstanceDetailVO getDetailById(Long id) {
         FormInstance instance = requireExist(id);
         FormTemplate template = formTemplateMapper.selectById(instance.getTemplateId());

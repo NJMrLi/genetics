@@ -66,8 +66,6 @@
                     />
                   </div>
                 </n-space>
-                
-                <n-divider dashed title-placement="left" v-if="isEditMode && activeFormSchema">正在处理的任务</n-divider>
               </div>
 
               <!-- 2. 当前任务表单：该阶段必须填写的字段 -->
@@ -113,7 +111,10 @@
                 :type="getActionType(action.action)"
                 @click="handleWorkflowAction(action)"
               >
-                <template #icon>
+                <template #icon v-if="action.icon">
+                  <span style="font-size: 16px;">{{ action.icon }}</span>
+                </template>
+                <template #icon v-else>
                   <n-icon><FlashOutline /></n-icon>
                 </template>
                 {{ action.actionName }}
@@ -201,8 +202,7 @@ import {
   saveInstance, 
   executeAction,
   getOrderStatusOptions, 
-  getAvailableActions, 
-  executeTransition 
+  getAvailableActions
 } from '@/api/formInstance'
 
 const route = useRoute()
@@ -434,7 +434,7 @@ async function handleActionSubmit() {
 
 async function doTransition(action, remark, extraData = null) {
   try {
-    await executeTransition(instanceId, {
+    await executeAction(instanceId, {
       action,
       remark,
       actionFormData: extraData
